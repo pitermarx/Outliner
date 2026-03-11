@@ -849,6 +849,69 @@ test.describe('Authentication', () => {
     await page.locator('#modal-login').click({ position: { x: 5, y: 5 } });
     await expect(page.locator('#modal-login')).toHaveClass(/hidden/);
   });
+
+  test('login modal has a Sign up toggle link', async ({ page }) => {
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await expect(page.locator('#btn-login-switch')).toBeVisible();
+    await expect(page.locator('#btn-login-switch')).toContainText('Sign up');
+  });
+
+  test('clicking Sign up link switches modal to sign-up mode', async ({ page }) => {
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await page.click('#btn-login-switch');
+    await expect(page.locator('#login-modal-title')).toContainText('Sign up');
+    await expect(page.locator('#btn-login-submit')).toContainText('Sign up');
+    await expect(page.locator('#login-confirm-password')).toBeVisible();
+    await expect(page.locator('#btn-login-switch')).toContainText('Sign in');
+  });
+
+  test('sign-up mode shows error when passwords do not match', async ({ page }) => {
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await page.click('#btn-login-switch');
+    await page.fill('#login-email', 'test@example.com');
+    await page.fill('#login-password', 'password123');
+    await page.fill('#login-confirm-password', 'different456');
+    await page.click('#btn-login-submit');
+    await expect(page.locator('#login-error')).not.toHaveClass(/hidden/);
+    await expect(page.locator('#login-error')).toContainText('Passwords do not match');
+  });
+
+  test('sign-up mode shows error when fields are empty', async ({ page }) => {
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await page.click('#btn-login-switch');
+    await page.click('#btn-login-submit');
+    await expect(page.locator('#login-error')).not.toHaveClass(/hidden/);
+    await expect(page.locator('#login-error')).toContainText('required');
+  });
+
+  test('clicking Sign in link from sign-up mode switches back to sign-in mode', async ({ page }) => {
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await page.click('#btn-login-switch');
+    await expect(page.locator('#login-modal-title')).toContainText('Sign up');
+    await page.click('#btn-login-switch');
+    await expect(page.locator('#login-modal-title')).toContainText('Sign in');
+    await expect(page.locator('#btn-login-submit')).toContainText('Sign in');
+    await expect(page.locator('#login-confirm-password')).not.toBeVisible();
+  });
+
+  test('reopening login modal always starts in sign-in mode', async ({ page }) => {
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await page.click('#btn-login-switch');
+    await expect(page.locator('#login-modal-title')).toContainText('Sign up');
+    // Close login modal, then close options modal
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await expect(page.locator('#login-modal-title')).toContainText('Sign in');
+    await expect(page.locator('#login-confirm-password')).not.toBeVisible();
+  });
 });
 
 test.describe('Mobile top spacing', () => {

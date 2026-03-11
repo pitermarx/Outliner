@@ -270,9 +270,12 @@ Authentication is provided by [Supabase](https://supabase.com), loaded from the 
 
 - The `#auth-ui` container inside `#modal-options` is populated dynamically by `renderAuthUI(user)`.
 - On load, `initAuth()` synchronously shows the **Sign in** button, then asynchronously fetches the active session and updates the UI.
-- Clicking **Sign in** opens `#modal-login`, which has email and password fields.
-- On successful login, `#modal-login` closes and the Account section shows the signed-in email and a **Sign out** button.
+- Clicking **Sign in** opens `#modal-login`, which supports two modes: **Sign in** and **Sign up**.
+- The modal starts in Sign-in mode. A "Don't have an account? Sign up" link toggles to Sign-up mode, which shows an additional **Confirm password** field.
+- In Sign-up mode, submitting the form calls `supabaseClient.auth.signUp({ email, password })`. On success, a "Check your email for a confirmation link." message is shown (Supabase sends a confirmation email by default; this can be disabled in the Supabase Auth settings).
+- In Sign-in mode, submitting the form calls `supabaseClient.auth.signInWithPassword({ email, password })`. On success, `#modal-login` closes and the Account section shows the signed-in email and a **Sign out** button.
 - If the Supabase CDN is unavailable, the **Sign in** button is still shown, and submitting the form shows an "Authentication service unavailable." error.
+- No changes to the Supabase project are required to enable sign-up — email/password sign-up is enabled by default.
 
 ---
 
