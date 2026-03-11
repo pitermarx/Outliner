@@ -185,6 +185,15 @@ Applied only on blur. While editing, raw text is shown.
 
 A global `keydown` listener handles `Escape` to close any open modal or the search bar, and handles `Ctrl+F` / `?` / `Ctrl+Z` when no editable element is focused. It also handles `ArrowDown` (focus first visible node) and `ArrowUp` (focus last visible node) when no item is focused.
 
+## Touch / mobile handling
+
+Each `.bullet-row` has `touchstart` / `touchend` listeners for swipe-to-indent:
+
+- **Swipe right** (horizontal delta > 50 px, horizontal > 2× vertical) → `indentNode` (same as `Tab`).
+- **Swipe left** (horizontal delta < −50 px, horizontal > 2× vertical) → `unindentNode` (same as `Shift+Tab`).
+
+Both listeners are registered as `{ passive: true }` so they do not block scrolling.
+
 ---
 
 ## Description behaviour
@@ -256,6 +265,7 @@ On first load (empty document), seed with a welcome node containing five tip bul
 
 - `indentNode` when `idx === 0` → no previous sibling, do nothing.
 - `unindentNode` when parent is the current zoom root → do nothing.
+- `unindentNode` moves the node to after its parent and all of the node's subsequent siblings are re-parented as children of the unindented node (so the visual order is preserved and no siblings are lost).
 - `deleteNode` when it is the only child → focus parent (or zoom title if parent is zoom root).
 - `deleteNode` when node has children → show a `window.confirm()` dialog before proceeding.
 - `zoomStack` IDs from hash that no longer exist in doc → filter them out on load (also after undo).

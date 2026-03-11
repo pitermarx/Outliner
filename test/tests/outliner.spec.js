@@ -112,6 +112,99 @@ test.describe('Indenting bullets', () => {
     const marginAfterUnindent = await secondRow.evaluate(el => el.style.marginLeft);
     expect(marginAfterUnindent).not.toBe(marginAfterIndent);
   });
+
+  test('unindenting adopts subsequent siblings as children', async ({ page }) => {
+    // Set up: root → [a] where a has children [b, c]
+    await page.evaluate(() => {
+      let nodeCounter = 0;
+      const makeNode = (text, children = []) => ({
+        id: `test-node-${++nodeCounter}`,
+        text,
+        description: '',
+        children,
+        collapsed: false,
+      });
+      const c = makeNode('c');
+      const b = makeNode('b');
+      const a = makeNode('a', [b, c]);
+      localStorage.setItem('outline_v1', JSON.stringify({
+        root: { id: 'root', text: 'root', description: '', children: [a], collapsed: false },
+        version: 1,
+      }));
+    });
+    await page.reload();
+    await page.waitForSelector('.bullet-row');
+
+    // Click b's text (second visible bullet after a) and unindent it
+    const bText = page.locator('.bullet-text').nth(1);
+    await bText.click();
+    await page.keyboard.press('Shift+Tab');
+
+    // All three rows (a, b, c) should still be visible
+    const rows = page.locator('.bullet-row');
+    await expect(rows).toHaveCount(3);
+
+    // a should no longer have children
+    const aRow = page.locator('.bullet-row').nth(0);
+    await expect(aRow).not.toHaveClass(/has-children/);
+
+    // b should now have children (c was adopted)
+    const bRow = page.locator('.bullet-row').nth(1);
+    await expect(bRow).toHaveClass(/has-children/);
+
+    // c should be deeper than b (indented further)
+    const bMargin = await bRow.evaluate(el => parseInt(el.style.marginLeft) || 0);
+    const cRow = page.locator('.bullet-row').nth(2);
+    const cMargin = await cRow.evaluate(el => parseInt(el.style.marginLeft) || 0);
+    expect(cMargin).toBeGreaterThan(bMargin);
+  });
+});
+
+test.describe('Swipe to indent/unindent (mobile)', () => {
+  /** Dispatch a synthetic horizontal swipe on the given CSS selector. */
+  async function simulateSwipe(page, selector, deltaX) {
+    await page.evaluate(([sel, dx]) => {
+      const row = document.querySelector(sel);
+      if (!row) return;
+      const rect = row.getBoundingClientRect();
+      const sx = rect.left + rect.width / 2;
+      const sy = rect.top + rect.height / 2;
+      const startTouch = new Touch({ identifier: 1, target: row, clientX: sx, clientY: sy });
+      const endTouch = new Touch({ identifier: 1, target: row, clientX: sx + dx, clientY: sy });
+      row.dispatchEvent(new TouchEvent('touchstart', { touches: [startTouch], changedTouches: [startTouch], bubbles: true }));
+      row.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [endTouch], bubbles: true }));
+    }, [selector, deltaX]);
+  }
+
+  test('swipe right indents a bullet', async ({ page, browserName }) => {
+    test.skip(browserName === 'firefox', 'Touch constructor not available in non-touch Firefox');
+    const secondRow = page.locator('.bullet-row').nth(1);
+    const marginBefore = await secondRow.evaluate(el => el.style.marginLeft);
+    const secondRowId = await secondRow.getAttribute('data-id');
+
+    await simulateSwipe(page, `.bullet-row[data-id="${secondRowId}"]`, 80);
+
+    const marginAfter = await secondRow.evaluate(el => el.style.marginLeft);
+    expect(marginAfter).not.toBe(marginBefore);
+  });
+
+  test('swipe left unindents a bullet', async ({ page, browserName }) => {
+    test.skip(browserName === 'firefox', 'Touch constructor not available in non-touch Firefox');
+    // First indent the second bullet via keyboard
+    const secondText = page.locator('.bullet-text').nth(1);
+    await secondText.click();
+    await page.keyboard.press('Tab');
+
+    const secondRow = page.locator('.bullet-row').nth(1);
+    const marginAfterIndent = await secondRow.evaluate(el => el.style.marginLeft);
+    const secondRowId = await secondRow.getAttribute('data-id');
+
+    // Swipe left to unindent
+    await simulateSwipe(page, `.bullet-row[data-id="${secondRowId}"]`, -80);
+
+    const marginAfterUnindent = await secondRow.evaluate(el => el.style.marginLeft);
+    expect(marginAfterUnindent).not.toBe(marginAfterIndent);
+  });
 });
 
 test.describe('Moving bullets', () => {
