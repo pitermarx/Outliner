@@ -1007,6 +1007,24 @@
             // Delay resize until rendered
             setTimeout(autoResize, 0);
 
+            // Swipe right → indent, swipe left → unindent (mobile)
+            // Touch coordinates are stored on the row's dataset to avoid per-row closure variables.
+            row.addEventListener('touchstart', (e) => {
+                row.dataset.touchStartX = e.touches[0].clientX;
+                row.dataset.touchStartY = e.touches[0].clientY;
+            }, { passive: true });
+            row.addEventListener('touchend', (e) => {
+                const dx = e.changedTouches[0].clientX - (row.dataset.touchStartX || 0);
+                const dy = e.changedTouches[0].clientY - (row.dataset.touchStartY || 0);
+                if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 2) {
+                    if (dx > 0) {
+                        indentNode(node.id);
+                    } else {
+                        unindentNode(node.id);
+                    }
+                }
+            }, { passive: true });
+
             content.append(textEl, descView, descEl);
             row.append(gutter, content);
             return row;
@@ -1414,9 +1432,11 @@
             const nodeIdx = parent.children.findIndex(c => c.id === id);
             const parentIdx = grandParent.children.findIndex(c => c.id === parent.id);
             if (nodeIdx === -1 || parentIdx === -1) return;
-            const node = parent.children[nodeIdx];
             pushUndo();
-            parent.children.splice(nodeIdx, 1);
+            // Remove node and all subsequent siblings from parent; subsequent siblings
+            // become children of the unindented node (appended after existing children)
+            const [node, ...siblingsToAdopt] = parent.children.splice(nodeIdx);
+            node.children.push(...siblingsToAdopt);
             grandParent.children.splice(parentIdx + 1, 0, node);
             saveDoc();
             render();
