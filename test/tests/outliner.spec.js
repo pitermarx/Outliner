@@ -750,6 +750,13 @@ test.describe('Options dialog', () => {
     await expect(page.locator('#btn-toggle-theme')).toBeVisible();
   });
 
+  test('Options modal contains a GitHub link', async ({ page }) => {
+    await page.click('#btn-options');
+    const link = page.locator('#link-github');
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute('href', 'https://github.com/pitermarx/Outliner');
+  });
+
   test('theme toggle switches to dark mode', async ({ page }) => {
     await page.click('#btn-options');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
