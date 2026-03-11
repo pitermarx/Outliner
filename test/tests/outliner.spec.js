@@ -761,3 +761,26 @@ test.describe('Options dialog', () => {
     await expect(page.locator('#modal-options')).toHaveClass(/hidden/);
   });
 });
+
+test.describe('Mobile top spacing', () => {
+  test('top padding of #app is small on mobile viewports', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    await page.waitForSelector('.bullet-row');
+    const paddingTop = await page.locator('#app').evaluate(el =>
+      parseFloat(getComputedStyle(el).paddingTop)
+    );
+    // On mobile (≤600px wide) the padding-top should be 8px, not the desktop 52px
+    expect(paddingTop).toBe(8);
+  });
+
+  test('desktop top padding of #app is larger than mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.reload();
+    await page.waitForSelector('.bullet-row');
+    const paddingTop = await page.locator('#app').evaluate(el =>
+      parseFloat(getComputedStyle(el).paddingTop)
+    );
+    expect(paddingTop).toBeGreaterThan(8);
+  });
+});

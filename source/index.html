@@ -135,6 +135,16 @@
             padding-top: calc(var(--search-h) + 4px);
         }
 
+        @media (max-width: 600px) {
+            #app {
+                padding-top: 8px;
+            }
+
+            #app.search-open {
+                padding-top: calc(var(--search-h) + 4px);
+            }
+        }
+
         /* ── Breadcrumb ── */
         #breadcrumb {
             display: none;
