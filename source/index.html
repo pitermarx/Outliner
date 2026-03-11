@@ -646,7 +646,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 0;
+            padding: 8px 0;
             border-bottom: 1px solid var(--border-light);
         }
 
@@ -658,6 +658,16 @@
             font-size: 14px;
             color: var(--text);
             font-weight: 500;
+        }
+
+        .options-link {
+            font-size: 13px;
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .options-link:hover {
+            text-decoration: underline;
         }
 
         /* ── Utility ── */
@@ -808,10 +818,11 @@
                         <span class="options-item-label">Theme</span>
                         <button class="btn btn-secondary" id="btn-toggle-theme">Switch to dark mode</button>
                     </div>
+                    <div class="options-item">
+                        <span class="options-item-label">Source code</span>
+                        <a class="options-link" id="link-github" href="https://github.com/pitermarx/Outliner" target="_blank" rel="noopener">github.com/pitermarx/Outliner</a>
+                    </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" data-modal="modal-options">Close</button>
             </div>
         </div>
     </div>

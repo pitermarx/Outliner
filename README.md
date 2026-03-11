@@ -82,14 +82,14 @@ Use `history.pushState` for zoom changes so back/forward work naturally. Use `hi
 
 <div id="toolbar">             <!-- fixed bottom -->
   <button id="btn-markdown">Markdown</button>    <!-- opens unified edit-as-markdown modal -->
-  <button id="btn-options">Options</button>       <!-- opens options modal (theme, sign in) -->
+  <button id="btn-options">Options</button>       <!-- opens options modal (theme, sign in, GitHub link) -->
   <span class="toolbar-hint">? for shortcuts</span>   <!-- click opens shortcuts modal -->
 </div>
 
 <!-- three modals, each a .modal-overlay.hidden wrapper -->
 <div id="modal-markdown">  <!-- editable textarea showing current outline as Markdown; Apply button imports changes -->
 <div id="modal-shortcuts">
-<div id="modal-options">   <!-- options: sign in (coming soon), theme toggle (dark/light) -->
+<div id="modal-options">   <!-- options: sign in (coming soon), theme toggle (dark/light), GitHub repo link -->
 ```
 
 ### Bullet row DOM (produced by `buildRow`)
