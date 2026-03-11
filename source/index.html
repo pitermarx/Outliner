@@ -702,6 +702,34 @@
             margin-bottom: 6px;
         }
 
+        .login-success {
+            font-size: 13px;
+            color: #2e7d32;
+            padding: 4px 0;
+        }
+
+        .login-switch {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .login-switch-link {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 13px;
+            color: var(--accent);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .login-switch-link:hover {
+            opacity: 0.8;
+        }
+
         /* ── Utility ── */
         .hidden {
             display: none !important;
@@ -874,7 +902,7 @@
     <div id="modal-login" class="modal-overlay hidden">
         <div class="modal">
             <div class="modal-header">
-                <span class="modal-title">Sign in</span>
+                <span class="modal-title" id="login-modal-title">Sign in</span>
                 <button class="modal-close" data-modal="modal-login">×</button>
             </div>
             <div class="modal-body">
@@ -882,7 +910,13 @@
                     <div class="options-item" style="flex-direction:column;align-items:stretch;gap:8px;">
                         <input type="email" id="login-email" class="login-input" placeholder="Email" autocomplete="email">
                         <input type="password" id="login-password" class="login-input" placeholder="Password" autocomplete="current-password">
+                        <input type="password" id="login-confirm-password" class="login-input hidden" placeholder="Confirm password" autocomplete="new-password">
                         <div id="login-error" class="login-error hidden"></div>
+                        <div id="login-success" class="login-success hidden"></div>
+                        <div class="login-switch">
+                            <span id="login-switch-text">Don't have an account?</span>
+                            <button class="login-switch-link" id="btn-login-switch">Sign up</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -979,7 +1013,10 @@
                 document.getElementById('btn-sign-out').addEventListener('click', () => signOut());
             } else {
                 authUI.innerHTML = `<button class="btn btn-secondary" id="btn-sign-in">Sign in</button>`;
-                document.getElementById('btn-sign-in').addEventListener('click', () => openModal('modal-login'));
+                document.getElementById('btn-sign-in').addEventListener('click', () => {
+                    setLoginMode('signin');
+                    openModal('modal-login');
+                });
             }
         }
 
@@ -995,6 +1032,20 @@
 
         async function signOut() {
             await supabaseClient.auth.signOut();
+        }
+
+        let loginMode = 'signin';
+
+        function setLoginMode(mode) {
+            loginMode = mode;
+            const isSignIn = mode === 'signin';
+            document.getElementById('login-modal-title').textContent = isSignIn ? 'Sign in' : 'Sign up';
+            document.getElementById('btn-login-submit').textContent = isSignIn ? 'Sign in' : 'Sign up';
+            document.getElementById('login-confirm-password').classList.toggle('hidden', isSignIn);
+            document.getElementById('login-switch-text').textContent = isSignIn ? "Don't have an account?" : 'Already have an account?';
+            document.getElementById('btn-login-switch').textContent = isSignIn ? 'Sign up' : 'Sign in';
+            document.getElementById('login-error').classList.add('hidden');
+            document.getElementById('login-success').classList.add('hidden');
         }
 
         function applyTheme(theme) {
@@ -2194,16 +2245,31 @@
             }
         });
 
+        document.getElementById('btn-login-switch').addEventListener('click', () => {
+            setLoginMode(loginMode === 'signin' ? 'signup' : 'signin');
+        });
+
         document.getElementById('btn-login-submit').addEventListener('click', async () => {
             const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-password').value;
             const errorDiv = document.getElementById('login-error');
+            const successDiv = document.getElementById('login-success');
             errorDiv.classList.add('hidden');
+            successDiv.classList.add('hidden');
 
             if (!email || !password) {
                 errorDiv.textContent = 'Email and password are required.';
                 errorDiv.classList.remove('hidden');
                 return;
+            }
+
+            if (loginMode === 'signup') {
+                const confirmPassword = document.getElementById('login-confirm-password').value;
+                if (password !== confirmPassword) {
+                    errorDiv.textContent = 'Passwords do not match.';
+                    errorDiv.classList.remove('hidden');
+                    return;
+                }
             }
 
             if (!supabaseClient) {
@@ -2212,14 +2278,28 @@
                 return;
             }
 
-            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) {
-                errorDiv.textContent = error.message;
-                errorDiv.classList.remove('hidden');
+            if (loginMode === 'signin') {
+                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) {
+                    errorDiv.textContent = error.message;
+                    errorDiv.classList.remove('hidden');
+                } else {
+                    document.getElementById('login-email').value = '';
+                    document.getElementById('login-password').value = '';
+                    closeModal('modal-login');
+                }
             } else {
-                document.getElementById('login-email').value = '';
-                document.getElementById('login-password').value = '';
-                closeModal('modal-login');
+                const { error } = await supabaseClient.auth.signUp({ email, password });
+                if (error) {
+                    errorDiv.textContent = error.message;
+                    errorDiv.classList.remove('hidden');
+                } else {
+                    document.getElementById('login-email').value = '';
+                    document.getElementById('login-password').value = '';
+                    document.getElementById('login-confirm-password').value = '';
+                    successDiv.textContent = 'Check your email for a confirmation link.';
+                    successDiv.classList.remove('hidden');
+                }
             }
         });
 
