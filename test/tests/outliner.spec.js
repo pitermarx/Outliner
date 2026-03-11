@@ -1,6 +1,9 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
 
+// localStorage key used by @supabase/supabase-js for session persistence
+const SUPABASE_SESSION_KEY = 'sb-fpuoxiiedqmcfnjubicz-auth-token';
+
 test.beforeEach(async ({ page }) => {
   // Clear localStorage to ensure a fresh seeded state for each test
   await page.goto('/');
@@ -827,46 +830,10 @@ test.describe('Supabase Login', () => {
     await expect(page.locator('#modal-login')).not.toHaveClass(/hidden/);
   });
 
-  test('login modal shows Supabase config fields when not configured', async ({ page }) => {
-    await page.evaluate(() => {
-      localStorage.removeItem('supabase_url');
-      localStorage.removeItem('supabase_anon_key');
-    });
-    await page.reload();
-    await page.waitForSelector('.bullet-row');
+  test('login modal always shows email/password form', async ({ page }) => {
     await page.click('#btn-options');
     await page.click('#btn-sign-in');
-    await expect(page.locator('#login-config-section')).toBeVisible();
-    await expect(page.locator('#login-form-section')).toBeHidden();
-  });
-
-  test('login modal shows email/password form when Supabase is configured', async ({ page }) => {
-    await page.evaluate(() => {
-      localStorage.setItem('supabase_url', 'https://example.supabase.co');
-      localStorage.setItem('supabase_anon_key', 'test-anon-key');
-    });
-    await page.reload();
-    await page.waitForSelector('.bullet-row');
-    await page.click('#btn-options');
-    await page.click('#btn-sign-in');
-    await expect(page.locator('#login-config-section')).toBeHidden();
     await expect(page.locator('#login-form-section')).toBeVisible();
-  });
-
-  test('saving Supabase config switches to sign-in form', async ({ page }) => {
-    await page.evaluate(() => {
-      localStorage.removeItem('supabase_url');
-      localStorage.removeItem('supabase_anon_key');
-    });
-    await page.reload();
-    await page.waitForSelector('.bullet-row');
-    await page.click('#btn-options');
-    await page.click('#btn-sign-in');
-    await page.fill('#supabase-url-input', 'https://example.supabase.co');
-    await page.fill('#supabase-key-input', 'test-anon-key');
-    await page.click('#btn-login-submit');
-    await expect(page.locator('#login-form-section')).toBeVisible();
-    await expect(page.locator('#login-config-section')).toBeHidden();
   });
 
   test('login modal can be closed with Escape', async ({ page }) => {
@@ -886,12 +853,6 @@ test.describe('Supabase Login', () => {
   });
 
   test('login error is shown on failed sign-in attempt', async ({ page }) => {
-    await page.evaluate(() => {
-      localStorage.setItem('supabase_url', 'https://example.supabase.co');
-      localStorage.setItem('supabase_anon_key', 'test-key');
-    });
-    await page.reload();
-    await page.waitForSelector('.bullet-row');
     await page.route('**/auth/v1/token**', async route => {
       await route.fulfill({
         status: 400,
@@ -909,12 +870,6 @@ test.describe('Supabase Login', () => {
   });
 
   test('sign-in mode toggle switches to sign-up', async ({ page }) => {
-    await page.evaluate(() => {
-      localStorage.setItem('supabase_url', 'https://example.supabase.co');
-      localStorage.setItem('supabase_anon_key', 'test-key');
-    });
-    await page.reload();
-    await page.waitForSelector('.bullet-row');
     await page.click('#btn-options');
     await page.click('#btn-sign-in');
     await page.click('#login-mode-toggle');
@@ -923,12 +878,6 @@ test.describe('Supabase Login', () => {
   });
 
   test('sign-up mode toggle switches back to sign-in', async ({ page }) => {
-    await page.evaluate(() => {
-      localStorage.setItem('supabase_url', 'https://example.supabase.co');
-      localStorage.setItem('supabase_anon_key', 'test-key');
-    });
-    await page.reload();
-    await page.waitForSelector('.bullet-row');
     await page.click('#btn-options');
     await page.click('#btn-sign-in');
     await page.click('#login-mode-toggle');
@@ -938,19 +887,16 @@ test.describe('Supabase Login', () => {
   });
 
   test('successful sign-in closes modal and shows user email in Options', async ({ page }) => {
-    await page.evaluate(() => {
-      localStorage.setItem('supabase_url', 'https://example.supabase.co');
-      localStorage.setItem('supabase_anon_key', 'test-key');
-    });
-    await page.reload();
-    await page.waitForSelector('.bullet-row');
     await page.route('**/auth/v1/token**', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           access_token: 'fake-token',
-          user: { id: 'user-1', email: 'user@example.com' },
+          token_type: 'bearer',
+          expires_in: 3600,
+          refresh_token: 'fake-refresh-token',
+          user: { id: 'user-1', aud: 'authenticated', email: 'user@example.com' },
         }),
       });
     });
@@ -967,20 +913,22 @@ test.describe('Supabase Login', () => {
   });
 
   test('sign-out clears session and resets sign-in button', async ({ page }) => {
-    // Seed a session directly
-    await page.evaluate(() => {
-      localStorage.setItem('supabase_url', 'https://example.supabase.co');
-      localStorage.setItem('supabase_anon_key', 'test-key');
-      localStorage.setItem('supabase_session', JSON.stringify({
+    // Seed a session using the supabase-js localStorage key format
+    await page.evaluate((key) => {
+      localStorage.setItem(key, JSON.stringify({
         access_token: 'fake-token',
-        user: { id: 'user-1', email: 'user@example.com' },
+        token_type: 'bearer',
+        expires_in: 3600,
+        expires_at: 9999999999,
+        refresh_token: 'fake-refresh-token',
+        user: { id: 'user-1', aud: 'authenticated', email: 'user@example.com' },
       }));
+    }, SUPABASE_SESSION_KEY);
+    await page.route('**/auth/v1/**', async route => {
+      await route.fulfill({ status: 204, body: '' });
     });
     await page.reload();
     await page.waitForSelector('.bullet-row');
-    await page.route('**/auth/v1/logout**', async route => {
-      await route.fulfill({ status: 204, body: '' });
-    });
     await page.click('#btn-options');
     await expect(page.locator('#btn-sign-in')).toContainText('user@example.com');
     await page.click('#btn-sign-in');
@@ -989,13 +937,18 @@ test.describe('Supabase Login', () => {
   });
 
   test('session persists across reload', async ({ page }) => {
-    await page.evaluate(() => {
-      localStorage.setItem('supabase_url', 'https://example.supabase.co');
-      localStorage.setItem('supabase_anon_key', 'test-key');
-      localStorage.setItem('supabase_session', JSON.stringify({
+    await page.evaluate((key) => {
+      localStorage.setItem(key, JSON.stringify({
         access_token: 'fake-token',
-        user: { id: 'user-1', email: 'persisted@example.com' },
+        token_type: 'bearer',
+        expires_in: 3600,
+        expires_at: 9999999999,
+        refresh_token: 'fake-refresh-token',
+        user: { id: 'user-1', aud: 'authenticated', email: 'persisted@example.com' },
       }));
+    }, SUPABASE_SESSION_KEY);
+    await page.route('**/auth/v1/**', async route => {
+      await route.fulfill({ status: 204, body: '' });
     });
     await page.reload();
     await page.waitForSelector('.bullet-row');

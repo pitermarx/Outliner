@@ -90,7 +90,7 @@ Use `history.pushState` for zoom changes so back/forward work naturally. Use `hi
 <div id="modal-markdown">  <!-- editable textarea showing current outline as Markdown; Apply button imports changes -->
 <div id="modal-shortcuts">
 <div id="modal-options">   <!-- options: sign in / signed-in email + sign out, theme toggle (dark/light) -->
-<div id="modal-login">     <!-- two-step sign-in: step 1 configure Supabase URL + anon key, step 2 email + password form -->
+<div id="modal-login">     <!-- email + password sign-in / sign-up form backed by hardcoded Supabase project -->
 ```
 
 ### Bullet row DOM (produced by `buildRow`)
@@ -295,28 +295,23 @@ The seed data in Markdown format:
 
 ## Supabase login
 
-The app supports optional Supabase-backed sign in / sign up using the Supabase Auth REST API (no external JS library).
+The app supports Supabase-backed sign in / sign up via `@supabase/supabase-js` (bundled in `source/supabase.js`). The Supabase project URL and publishable key are hardcoded in the app — both are safe to ship client-side by design.
 
 **Flow:**
 
 1. Open **Options → Sign in** to open the `#modal-login` modal.
-2. **Step 1 (one-time setup):** If Supabase is not yet configured, enter your **Supabase Project URL** and **Anon / Public Key** and click **Save**. These are stored in `localStorage` under `supabase_url` and `supabase_anon_key`.
-3. **Step 2:** Enter your email and password and click **Sign In** (or toggle to **Sign Up** to create an account).
-4. After a successful sign-in the modal closes and the **Account** row in Options shows the signed-in email address. Click the email button to **sign out**.
+2. Enter your email and password and click **Sign In** (or toggle to **Sign Up** to create an account).
+3. After a successful sign-in the modal closes and the **Account** row in Options shows the signed-in email address. Click the email button to **sign out**.
 
-**localStorage keys:**
+**Session storage:**
 
-| Key | Value |
-|-----|-------|
-| `supabase_url` | Supabase project URL (e.g. `https://abc.supabase.co`) |
-| `supabase_anon_key` | Supabase anon / public key |
-| `supabase_session` | JSON `{ access_token, user: { email, id } }` |
+The `@supabase/supabase-js` client handles session persistence automatically in `localStorage` under the key `sb-fpuoxiiedqmcfnjubicz-auth-token`.
 
-**Supabase REST endpoints used:**
+**Supabase endpoints used (via `supabase.auth`):**
 
-- Sign in: `POST /auth/v1/token?grant_type=password`
-- Sign up: `POST /auth/v1/signup`
-- Sign out: `POST /auth/v1/logout`
+- Sign in: `supabase.auth.signInWithPassword` → `POST /auth/v1/token?grant_type=password`
+- Sign up: `supabase.auth.signUp` → `POST /auth/v1/signup`
+- Sign out: `supabase.auth.signOut` → `POST /auth/v1/logout`
 
 ---
 

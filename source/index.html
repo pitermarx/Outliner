@@ -875,22 +875,7 @@
                 <button class="modal-close" data-modal="modal-login">×</button>
             </div>
             <div class="modal-body">
-                <!-- Supabase config section (shown when not yet configured) -->
-                <div id="login-config-section">
-                    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
-                        Enter your Supabase project credentials to enable sign in.
-                    </p>
-                    <div class="form-field">
-                        <label for="supabase-url-input">Supabase Project URL</label>
-                        <input type="url" id="supabase-url-input" placeholder="https://your-project.supabase.co" autocomplete="off">
-                    </div>
-                    <div class="form-field">
-                        <label for="supabase-key-input">Anon / Public Key</label>
-                        <input type="text" id="supabase-key-input" placeholder="eyJ…" autocomplete="off">
-                    </div>
-                </div>
-                <!-- Sign-in / Sign-up form (shown when configured) -->
-                <div id="login-form-section" style="display:none">
+                <div id="login-form-section">
                     <div class="form-field">
                         <label for="login-email-input">Email</label>
                         <input type="email" id="login-email-input" placeholder="you@example.com" autocomplete="email">
@@ -905,12 +890,14 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" data-modal="modal-login">Cancel</button>
-                <button class="btn btn-primary" id="btn-login-submit">Save</button>
+                <button class="btn btn-primary" id="btn-login-submit">Sign In</button>
             </div>
         </div>
     </div>
 
     <script type="module">
+        import { createClient } from './supabase.js';
+
         // ── Utilities ──────────────────────────────────────────────────────────────
 
         function uid() {
@@ -970,46 +957,18 @@
 
         // ── Supabase Auth ─────────────────────────────────────────────────────────
 
-        const SUPABASE_URL_KEY = 'supabase_url';
-        const SUPABASE_ANON_KEY_KEY = 'supabase_anon_key';
-        const SUPABASE_SESSION_KEY = 'supabase_session';
+        const SUPABASE_URL = 'https://fpuoxiiedqmcfnjubicz.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_qz7yiLLNFBOKG8S7PfiluQ_vn-SKnd8';
 
-        let supabaseSession = null; // { access_token, user: { email, id } }
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
         let loginMode = 'signin'; // 'signin' | 'signup'
 
-        function getSupabaseConfig() {
-            const url = (localStorage.getItem(SUPABASE_URL_KEY) || '').replace(/\/$/, '');
-            const anonKey = localStorage.getItem(SUPABASE_ANON_KEY_KEY) || '';
-            return { url, anonKey };
-        }
-
-        function isSupabaseConfigured() {
-            const { url, anonKey } = getSupabaseConfig();
-            return !!(url && anonKey);
-        }
-
-        function loadSession() {
-            try {
-                const raw = localStorage.getItem(SUPABASE_SESSION_KEY);
-                if (raw) supabaseSession = JSON.parse(raw);
-            } catch (e) { /* Silently ignore corrupted session data */ }
-        }
-
-        function saveSession(session) {
-            supabaseSession = session;
-            try { localStorage.setItem(SUPABASE_SESSION_KEY, JSON.stringify(session)); } catch (e) { /* Silently ignore storage errors */ }
-        }
-
-        function clearSession() {
-            supabaseSession = null;
-            localStorage.removeItem(SUPABASE_SESSION_KEY);
-        }
-
-        function updateAuthUI() {
+        function updateAuthUI(session) {
             const btn = document.getElementById('btn-sign-in');
             if (!btn) return;
-            if (supabaseSession && supabaseSession.user) {
-                btn.textContent = supabaseSession.user.email;
+            if (session && session.user) {
+                btn.textContent = session.user.email;
                 btn.title = 'Click to sign out';
                 btn.dataset.authAction = 'signout';
             } else {
@@ -1019,68 +978,34 @@
             }
         }
 
-        async function supabaseRequest(path, method, body, token) {
-            const { url, anonKey } = getSupabaseConfig();
-            const headers = { 'Content-Type': 'application/json', 'apikey': anonKey };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-            const resp = await fetch(`${url}${path}`, {
-                method,
-                headers,
-                body: body ? JSON.stringify(body) : undefined,
-            });
-            const data = await resp.json().catch(() => ({}));
-            if (!resp.ok) {
-                throw new Error(data.error_description || data.msg || data.message || 'Request failed');
-            }
-            return data;
-        }
+        supabase.auth.onAuthStateChange((_event, session) => {
+            updateAuthUI(session);
+        });
 
         async function supabaseSignIn(email, password) {
-            const data = await supabaseRequest('/auth/v1/token?grant_type=password', 'POST', { email, password });
-            saveSession({ access_token: data.access_token, user: { email: data.user.email, id: data.user.id } });
-            return data;
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) throw new Error(error.message);
         }
 
         async function supabaseSignUp(email, password) {
-            const data = await supabaseRequest('/auth/v1/signup', 'POST', { email, password });
-            if (data.access_token) {
-                saveSession({ access_token: data.access_token, user: { email: data.user.email, id: data.user.id } });
-            }
-            return data;
+            const { error } = await supabase.auth.signUp({ email, password });
+            if (error) throw new Error(error.message);
         }
 
         async function supabaseSignOut() {
-            if (supabaseSession && supabaseSession.access_token) {
-                try { await supabaseRequest('/auth/v1/logout', 'POST', null, supabaseSession.access_token); } catch (e) { /* Sign out locally even if API call fails */ }
-            }
-            clearSession();
-            updateAuthUI();
+            await supabase.auth.signOut();
         }
 
         function openLoginModal() {
             loginMode = 'signin';
-            const configured = isSupabaseConfigured();
-            document.getElementById('login-config-section').style.display = configured ? 'none' : '';
-            document.getElementById('login-form-section').style.display = configured ? '' : 'none';
             document.getElementById('login-modal-title').textContent = 'Sign In';
-            document.getElementById('btn-login-submit').textContent = configured ? 'Sign In' : 'Save';
+            document.getElementById('btn-login-submit').textContent = 'Sign In';
             document.getElementById('login-error-msg').style.display = 'none';
             document.getElementById('login-email-input').value = '';
             document.getElementById('login-password-input').value = '';
             document.getElementById('login-mode-toggle').textContent = "Don't have an account? Sign up";
-            if (!configured) {
-                const { url, anonKey } = getSupabaseConfig();
-                document.getElementById('supabase-url-input').value = url;
-                document.getElementById('supabase-key-input').value = anonKey;
-            }
             openModal('modal-login');
-            setTimeout(() => {
-                if (configured) {
-                    document.getElementById('login-email-input').focus();
-                } else {
-                    document.getElementById('supabase-url-input').focus();
-                }
-            }, 50);
+            setTimeout(() => document.getElementById('login-email-input').focus(), 50);
         }
 
         // ── Persistence ───────────────────────────────────────────────────────────
@@ -2084,27 +2009,6 @@
         });
 
         document.getElementById('btn-login-submit').addEventListener('click', async () => {
-            const configured = isSupabaseConfigured();
-
-            if (!configured) {
-                // Save Supabase config and switch to auth form
-                const url = document.getElementById('supabase-url-input').value.trim();
-                const key = document.getElementById('supabase-key-input').value.trim();
-                if (!url || !key) {
-                    document.getElementById('login-error-msg').textContent = 'Please enter both the Supabase URL and Anon / Public Key.';
-                    document.getElementById('login-error-msg').style.display = '';
-                    return;
-                }
-                localStorage.setItem(SUPABASE_URL_KEY, url);
-                localStorage.setItem(SUPABASE_ANON_KEY_KEY, key);
-                document.getElementById('login-config-section').style.display = 'none';
-                document.getElementById('login-form-section').style.display = '';
-                document.getElementById('btn-login-submit').textContent = 'Sign In';
-                document.getElementById('login-modal-title').textContent = 'Sign In';
-                setTimeout(() => document.getElementById('login-email-input').focus(), 50);
-                return;
-            }
-
             const email = document.getElementById('login-email-input').value.trim();
             const password = document.getElementById('login-password-input').value;
             if (!email || !password) {
@@ -2124,7 +2028,6 @@
                 } else {
                     await supabaseSignIn(email, password);
                 }
-                updateAuthUI();
                 closeModal('modal-login');
             } catch (err) {
                 document.getElementById('login-error-msg').textContent = err.message;
@@ -2184,8 +2087,6 @@
 
         function init() {
             applyTheme(localStorage.getItem(THEME_KEY) || 'light');
-            loadSession();
-            updateAuthUI();
             const loaded = loadDoc();
             if (!loaded) seedDoc(doc);
             loadFromHash();
