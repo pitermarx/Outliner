@@ -660,6 +660,58 @@
             font-weight: 500;
         }
 
+        /* ── Login form ── */
+        .form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 12px;
+        }
+
+        .form-field label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .form-field input {
+            font-family: var(--font);
+            font-size: 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 7px 10px;
+            background: var(--bg);
+            color: var(--text);
+            outline: none;
+            width: 100%;
+        }
+
+        .form-field input:focus {
+            border-color: var(--accent);
+        }
+
+        .login-error {
+            color: var(--danger);
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .login-toggle-btn {
+            font-size: 12px;
+            color: var(--accent);
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            text-decoration: underline;
+            margin-top: 8px;
+            font-family: var(--font);
+        }
+
+        .login-toggle-btn:hover {
+            color: var(--text);
+        }
+
         /* ── Utility ── */
         .hidden {
             display: none !important;
@@ -802,7 +854,7 @@
                 <div class="options-list">
                     <div class="options-item">
                         <span class="options-item-label">Account</span>
-                        <button class="btn btn-secondary" id="btn-sign-in" disabled>Sign in (coming soon)</button>
+                        <button class="btn btn-secondary" id="btn-sign-in">Sign in</button>
                     </div>
                     <div class="options-item">
                         <span class="options-item-label">Theme</span>
@@ -812,6 +864,48 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" data-modal="modal-options">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-login" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title" id="login-modal-title">Sign In</span>
+                <button class="modal-close" data-modal="modal-login">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- Supabase config section (shown when not yet configured) -->
+                <div id="login-config-section">
+                    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
+                        Enter your Supabase project credentials to enable sign in.
+                    </p>
+                    <div class="form-field">
+                        <label for="supabase-url-input">Supabase Project URL</label>
+                        <input type="url" id="supabase-url-input" placeholder="https://your-project.supabase.co" autocomplete="off">
+                    </div>
+                    <div class="form-field">
+                        <label for="supabase-key-input">Anon / Public Key</label>
+                        <input type="text" id="supabase-key-input" placeholder="eyJ…" autocomplete="off">
+                    </div>
+                </div>
+                <!-- Sign-in / Sign-up form (shown when configured) -->
+                <div id="login-form-section" style="display:none">
+                    <div class="form-field">
+                        <label for="login-email-input">Email</label>
+                        <input type="email" id="login-email-input" placeholder="you@example.com" autocomplete="email">
+                    </div>
+                    <div class="form-field">
+                        <label for="login-password-input">Password</label>
+                        <input type="password" id="login-password-input" placeholder="Password" autocomplete="current-password">
+                    </div>
+                    <p id="login-error-msg" class="login-error" style="display:none"></p>
+                    <button id="login-mode-toggle" class="login-toggle-btn">Don't have an account? Sign up</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-modal="modal-login">Cancel</button>
+                <button class="btn btn-primary" id="btn-login-submit">Save</button>
             </div>
         </div>
     </div>
@@ -873,6 +967,121 @@
         let searchMatches = [];
         let searchIdx = 0;
         let undoStack = [];
+
+        // ── Supabase Auth ─────────────────────────────────────────────────────────
+
+        const SUPABASE_URL_KEY = 'supabase_url';
+        const SUPABASE_ANON_KEY_KEY = 'supabase_anon_key';
+        const SUPABASE_SESSION_KEY = 'supabase_session';
+
+        let supabaseSession = null; // { access_token, user: { email, id } }
+        let loginMode = 'signin'; // 'signin' | 'signup'
+
+        function getSupabaseConfig() {
+            const url = (localStorage.getItem(SUPABASE_URL_KEY) || '').replace(/\/$/, '');
+            const anonKey = localStorage.getItem(SUPABASE_ANON_KEY_KEY) || '';
+            return { url, anonKey };
+        }
+
+        function isSupabaseConfigured() {
+            const { url, anonKey } = getSupabaseConfig();
+            return !!(url && anonKey);
+        }
+
+        function loadSession() {
+            try {
+                const raw = localStorage.getItem(SUPABASE_SESSION_KEY);
+                if (raw) supabaseSession = JSON.parse(raw);
+            } catch (e) { /* Silently ignore corrupted session data */ }
+        }
+
+        function saveSession(session) {
+            supabaseSession = session;
+            try { localStorage.setItem(SUPABASE_SESSION_KEY, JSON.stringify(session)); } catch (e) { /* Silently ignore storage errors */ }
+        }
+
+        function clearSession() {
+            supabaseSession = null;
+            localStorage.removeItem(SUPABASE_SESSION_KEY);
+        }
+
+        function updateAuthUI() {
+            const btn = document.getElementById('btn-sign-in');
+            if (!btn) return;
+            if (supabaseSession && supabaseSession.user) {
+                btn.textContent = supabaseSession.user.email;
+                btn.title = 'Click to sign out';
+                btn.dataset.authAction = 'signout';
+            } else {
+                btn.textContent = 'Sign in';
+                btn.title = '';
+                btn.dataset.authAction = 'signin';
+            }
+        }
+
+        async function supabaseRequest(path, method, body, token) {
+            const { url, anonKey } = getSupabaseConfig();
+            const headers = { 'Content-Type': 'application/json', 'apikey': anonKey };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const resp = await fetch(`${url}${path}`, {
+                method,
+                headers,
+                body: body ? JSON.stringify(body) : undefined,
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+                throw new Error(data.error_description || data.msg || data.message || 'Request failed');
+            }
+            return data;
+        }
+
+        async function supabaseSignIn(email, password) {
+            const data = await supabaseRequest('/auth/v1/token?grant_type=password', 'POST', { email, password });
+            saveSession({ access_token: data.access_token, user: { email: data.user.email, id: data.user.id } });
+            return data;
+        }
+
+        async function supabaseSignUp(email, password) {
+            const data = await supabaseRequest('/auth/v1/signup', 'POST', { email, password });
+            if (data.access_token) {
+                saveSession({ access_token: data.access_token, user: { email: data.user.email, id: data.user.id } });
+            }
+            return data;
+        }
+
+        async function supabaseSignOut() {
+            if (supabaseSession && supabaseSession.access_token) {
+                try { await supabaseRequest('/auth/v1/logout', 'POST', null, supabaseSession.access_token); } catch (e) { /* Sign out locally even if API call fails */ }
+            }
+            clearSession();
+            updateAuthUI();
+        }
+
+        function openLoginModal() {
+            loginMode = 'signin';
+            const configured = isSupabaseConfigured();
+            document.getElementById('login-config-section').style.display = configured ? 'none' : '';
+            document.getElementById('login-form-section').style.display = configured ? '' : 'none';
+            document.getElementById('login-modal-title').textContent = 'Sign In';
+            document.getElementById('btn-login-submit').textContent = configured ? 'Sign In' : 'Save';
+            document.getElementById('login-error-msg').style.display = 'none';
+            document.getElementById('login-email-input').value = '';
+            document.getElementById('login-password-input').value = '';
+            document.getElementById('login-mode-toggle').textContent = "Don't have an account? Sign up";
+            if (!configured) {
+                const { url, anonKey } = getSupabaseConfig();
+                document.getElementById('supabase-url-input').value = url;
+                document.getElementById('supabase-key-input').value = anonKey;
+            }
+            openModal('modal-login');
+            setTimeout(() => {
+                if (configured) {
+                    document.getElementById('login-email-input').focus();
+                } else {
+                    document.getElementById('supabase-url-input').focus();
+                }
+            }, 50);
+        }
 
         // ── Persistence ───────────────────────────────────────────────────────────
 
@@ -1797,6 +2006,9 @@
                 if (!document.getElementById('modal-options').classList.contains('hidden')) {
                     closeModal('modal-options'); return;
                 }
+                if (!document.getElementById('modal-login').classList.contains('hidden')) {
+                    closeModal('modal-login'); return;
+                }
                 if (document.getElementById('search-bar').classList.contains('visible')) {
                     closeSearch();
                     return;
@@ -1851,6 +2063,77 @@
             applyTheme(next);
         });
 
+        document.getElementById('btn-sign-in').addEventListener('click', () => {
+            if (document.getElementById('btn-sign-in').dataset.authAction === 'signout') {
+                supabaseSignOut();
+            } else {
+                closeModal('modal-options');
+                openLoginModal();
+            }
+        });
+
+        document.getElementById('login-mode-toggle').addEventListener('click', () => {
+            loginMode = loginMode === 'signin' ? 'signup' : 'signin';
+            const isSignUp = loginMode === 'signup';
+            document.getElementById('login-modal-title').textContent = isSignUp ? 'Sign Up' : 'Sign In';
+            document.getElementById('btn-login-submit').textContent = isSignUp ? 'Sign Up' : 'Sign In';
+            document.getElementById('login-mode-toggle').textContent = isSignUp
+                ? 'Already have an account? Sign in'
+                : "Don't have an account? Sign up";
+            document.getElementById('login-error-msg').style.display = 'none';
+        });
+
+        document.getElementById('btn-login-submit').addEventListener('click', async () => {
+            const configured = isSupabaseConfigured();
+
+            if (!configured) {
+                // Save Supabase config and switch to auth form
+                const url = document.getElementById('supabase-url-input').value.trim();
+                const key = document.getElementById('supabase-key-input').value.trim();
+                if (!url || !key) {
+                    document.getElementById('login-error-msg').textContent = 'Please enter both the Supabase URL and Anon / Public Key.';
+                    document.getElementById('login-error-msg').style.display = '';
+                    return;
+                }
+                localStorage.setItem(SUPABASE_URL_KEY, url);
+                localStorage.setItem(SUPABASE_ANON_KEY_KEY, key);
+                document.getElementById('login-config-section').style.display = 'none';
+                document.getElementById('login-form-section').style.display = '';
+                document.getElementById('btn-login-submit').textContent = 'Sign In';
+                document.getElementById('login-modal-title').textContent = 'Sign In';
+                setTimeout(() => document.getElementById('login-email-input').focus(), 50);
+                return;
+            }
+
+            const email = document.getElementById('login-email-input').value.trim();
+            const password = document.getElementById('login-password-input').value;
+            if (!email || !password) {
+                document.getElementById('login-error-msg').textContent = 'Please enter your email and password.';
+                document.getElementById('login-error-msg').style.display = '';
+                return;
+            }
+
+            const submitBtn = document.getElementById('btn-login-submit');
+            submitBtn.disabled = true;
+            submitBtn.textContent = loginMode === 'signup' ? 'Signing up…' : 'Signing in…';
+            document.getElementById('login-error-msg').style.display = 'none';
+
+            try {
+                if (loginMode === 'signup') {
+                    await supabaseSignUp(email, password);
+                } else {
+                    await supabaseSignIn(email, password);
+                }
+                updateAuthUI();
+                closeModal('modal-login');
+            } catch (err) {
+                document.getElementById('login-error-msg').textContent = err.message;
+                document.getElementById('login-error-msg').style.display = '';
+                submitBtn.disabled = false;
+                submitBtn.textContent = loginMode === 'signup' ? 'Sign Up' : 'Sign In';
+            }
+        });
+
         // Close buttons and overlay clicks
         document.querySelectorAll('.modal-close, [data-modal]').forEach(el => {
             el.addEventListener('click', (e) => {
@@ -1901,6 +2184,8 @@
 
         function init() {
             applyTheme(localStorage.getItem(THEME_KEY) || 'light');
+            loadSession();
+            updateAuthUI();
             const loaded = loadDoc();
             if (!loaded) seedDoc(doc);
             loadFromHash();

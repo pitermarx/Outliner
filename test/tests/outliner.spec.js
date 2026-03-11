@@ -814,3 +814,192 @@ test.describe('Mobile top spacing', () => {
     expect(paddingTop).toBeGreaterThan(8);
   });
 });
+
+test.describe('Supabase Login', () => {
+  test('Sign in button in Options modal is enabled', async ({ page }) => {
+    await page.click('#btn-options');
+    await expect(page.locator('#btn-sign-in')).toBeEnabled();
+  });
+
+  test('clicking Sign in button opens login modal', async ({ page }) => {
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await expect(page.locator('#modal-login')).not.toHaveClass(/hidden/);
+  });
+
+  test('login modal shows Supabase config fields when not configured', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.removeItem('supabase_url');
+      localStorage.removeItem('supabase_anon_key');
+    });
+    await page.reload();
+    await page.waitForSelector('.bullet-row');
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await expect(page.locator('#login-config-section')).toBeVisible();
+    await expect(page.locator('#login-form-section')).toBeHidden();
+  });
+
+  test('login modal shows email/password form when Supabase is configured', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('supabase_url', 'https://example.supabase.co');
+      localStorage.setItem('supabase_anon_key', 'test-anon-key');
+    });
+    await page.reload();
+    await page.waitForSelector('.bullet-row');
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await expect(page.locator('#login-config-section')).toBeHidden();
+    await expect(page.locator('#login-form-section')).toBeVisible();
+  });
+
+  test('saving Supabase config switches to sign-in form', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.removeItem('supabase_url');
+      localStorage.removeItem('supabase_anon_key');
+    });
+    await page.reload();
+    await page.waitForSelector('.bullet-row');
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await page.fill('#supabase-url-input', 'https://example.supabase.co');
+    await page.fill('#supabase-key-input', 'test-anon-key');
+    await page.click('#btn-login-submit');
+    await expect(page.locator('#login-form-section')).toBeVisible();
+    await expect(page.locator('#login-config-section')).toBeHidden();
+  });
+
+  test('login modal can be closed with Escape', async ({ page }) => {
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await expect(page.locator('#modal-login')).not.toHaveClass(/hidden/);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#modal-login')).toHaveClass(/hidden/);
+  });
+
+  test('login modal can be closed by clicking the overlay', async ({ page }) => {
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await expect(page.locator('#modal-login')).not.toHaveClass(/hidden/);
+    await page.locator('#modal-login').click({ position: { x: 5, y: 5 } });
+    await expect(page.locator('#modal-login')).toHaveClass(/hidden/);
+  });
+
+  test('login error is shown on failed sign-in attempt', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('supabase_url', 'https://example.supabase.co');
+      localStorage.setItem('supabase_anon_key', 'test-key');
+    });
+    await page.reload();
+    await page.waitForSelector('.bullet-row');
+    await page.route('**/auth/v1/token**', async route => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'invalid_grant', error_description: 'Invalid login credentials' }),
+      });
+    });
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await page.fill('#login-email-input', 'test@example.com');
+    await page.fill('#login-password-input', 'wrong-password');
+    await page.click('#btn-login-submit');
+    await expect(page.locator('#login-error-msg')).toBeVisible();
+    await expect(page.locator('#login-error-msg')).toContainText('Invalid login credentials');
+  });
+
+  test('sign-in mode toggle switches to sign-up', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('supabase_url', 'https://example.supabase.co');
+      localStorage.setItem('supabase_anon_key', 'test-key');
+    });
+    await page.reload();
+    await page.waitForSelector('.bullet-row');
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await page.click('#login-mode-toggle');
+    await expect(page.locator('#login-modal-title')).toContainText('Sign Up');
+    await expect(page.locator('#btn-login-submit')).toContainText('Sign Up');
+  });
+
+  test('sign-up mode toggle switches back to sign-in', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('supabase_url', 'https://example.supabase.co');
+      localStorage.setItem('supabase_anon_key', 'test-key');
+    });
+    await page.reload();
+    await page.waitForSelector('.bullet-row');
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await page.click('#login-mode-toggle');
+    await page.click('#login-mode-toggle');
+    await expect(page.locator('#login-modal-title')).toContainText('Sign In');
+    await expect(page.locator('#btn-login-submit')).toContainText('Sign In');
+  });
+
+  test('successful sign-in closes modal and shows user email in Options', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('supabase_url', 'https://example.supabase.co');
+      localStorage.setItem('supabase_anon_key', 'test-key');
+    });
+    await page.reload();
+    await page.waitForSelector('.bullet-row');
+    await page.route('**/auth/v1/token**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          access_token: 'fake-token',
+          user: { id: 'user-1', email: 'user@example.com' },
+        }),
+      });
+    });
+    await page.click('#btn-options');
+    await page.click('#btn-sign-in');
+    await page.fill('#login-email-input', 'user@example.com');
+    await page.fill('#login-password-input', 'correct-password');
+    await page.click('#btn-login-submit');
+    // Modal should close
+    await expect(page.locator('#modal-login')).toHaveClass(/hidden/);
+    // Options modal sign-in button should now show the email
+    await page.click('#btn-options');
+    await expect(page.locator('#btn-sign-in')).toContainText('user@example.com');
+  });
+
+  test('sign-out clears session and resets sign-in button', async ({ page }) => {
+    // Seed a session directly
+    await page.evaluate(() => {
+      localStorage.setItem('supabase_url', 'https://example.supabase.co');
+      localStorage.setItem('supabase_anon_key', 'test-key');
+      localStorage.setItem('supabase_session', JSON.stringify({
+        access_token: 'fake-token',
+        user: { id: 'user-1', email: 'user@example.com' },
+      }));
+    });
+    await page.reload();
+    await page.waitForSelector('.bullet-row');
+    await page.route('**/auth/v1/logout**', async route => {
+      await route.fulfill({ status: 204, body: '' });
+    });
+    await page.click('#btn-options');
+    await expect(page.locator('#btn-sign-in')).toContainText('user@example.com');
+    await page.click('#btn-sign-in');
+    // After sign-out, button reverts to 'Sign in'
+    await expect(page.locator('#btn-sign-in')).toContainText('Sign in');
+  });
+
+  test('session persists across reload', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('supabase_url', 'https://example.supabase.co');
+      localStorage.setItem('supabase_anon_key', 'test-key');
+      localStorage.setItem('supabase_session', JSON.stringify({
+        access_token: 'fake-token',
+        user: { id: 'user-1', email: 'persisted@example.com' },
+      }));
+    });
+    await page.reload();
+    await page.waitForSelector('.bullet-row');
+    await page.click('#btn-options');
+    await expect(page.locator('#btn-sign-in')).toContainText('persisted@example.com');
+  });
+});

@@ -86,10 +86,11 @@ Use `history.pushState` for zoom changes so back/forward work naturally. Use `hi
   <span class="toolbar-hint">? for shortcuts</span>   <!-- click opens shortcuts modal -->
 </div>
 
-<!-- three modals, each a .modal-overlay.hidden wrapper -->
+<!-- four modals, each a .modal-overlay.hidden wrapper -->
 <div id="modal-markdown">  <!-- editable textarea showing current outline as Markdown; Apply button imports changes -->
 <div id="modal-shortcuts">
-<div id="modal-options">   <!-- options: sign in (coming soon), theme toggle (dark/light) -->
+<div id="modal-options">   <!-- options: sign in / signed-in email + sign out, theme toggle (dark/light) -->
+<div id="modal-login">     <!-- two-step sign-in: step 1 configure Supabase URL + anon key, step 2 email + password form -->
 ```
 
 ### Bullet row DOM (produced by `buildRow`)
@@ -289,6 +290,33 @@ The seed data in Markdown format:
 - Use `Ctrl+Z` to undo and the **Markdown** button to export
   > Undo reverses the last structural change (create, delete, move, indent). The Markdown toolbar button opens a live editor showing your full outline — edit it directly and click Apply to import changes.
 ```
+
+---
+
+## Supabase login
+
+The app supports optional Supabase-backed sign in / sign up using the Supabase Auth REST API (no external JS library).
+
+**Flow:**
+
+1. Open **Options → Sign in** to open the `#modal-login` modal.
+2. **Step 1 (one-time setup):** If Supabase is not yet configured, enter your **Supabase Project URL** and **Anon / Public Key** and click **Save**. These are stored in `localStorage` under `supabase_url` and `supabase_anon_key`.
+3. **Step 2:** Enter your email and password and click **Sign In** (or toggle to **Sign Up** to create an account).
+4. After a successful sign-in the modal closes and the **Account** row in Options shows the signed-in email address. Click the email button to **sign out**.
+
+**localStorage keys:**
+
+| Key | Value |
+|-----|-------|
+| `supabase_url` | Supabase project URL (e.g. `https://abc.supabase.co`) |
+| `supabase_anon_key` | Supabase anon / public key |
+| `supabase_session` | JSON `{ access_token, user: { email, id } }` |
+
+**Supabase REST endpoints used:**
+
+- Sign in: `POST /auth/v1/token?grant_type=password`
+- Sign up: `POST /auth/v1/signup`
+- Sign out: `POST /auth/v1/logout`
 
 ---
 
