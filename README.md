@@ -477,6 +477,8 @@ Behaviour:
 - `moveNodes` requires all selected nodes to share the same parent and be contiguous; if not, the operation is a no-op.
 - `indentNodes` processes nodes top-to-bottom so successive siblings all pile into the same previous sibling in order.
 - `_keepSelection` flag prevents the focus event from clearing the selection when `extendSelection` programmatically focuses the selection head.
+- `moveNodes` sets `_keepSelection = true` when restoring focus to `selectionHead` after render, so that the selection persists across multiple consecutive multi-select moves.
+- Ghost row `Backspace` on empty text navigates to the last visible bullet (same as `ArrowUp`), so keyboard users can move back up without switching to a different key.
 - `saveDoc()` marks `pendingSync = true` and updates the sync indicator; `saveDocLocal()` is the internal variant used during sync operations that must not trigger another push.
 - `tryAutoMerge` returns `null` if any node was edited differently in both local and server versions; only call it when `lastSyncedDocJson` is available (i.e. after the first successful sync).
 - `zoomStack` must be re-validated against the restored doc after a pull or merge — use `zoomStack = zoomStack.filter(id => !!findNode(id))`.

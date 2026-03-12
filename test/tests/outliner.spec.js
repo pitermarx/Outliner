@@ -758,6 +758,20 @@ test.describe('Ghost row', () => {
     await expect(lastBullet).toBeFocused();
   });
 
+  test('Backspace on empty ghost row focuses last bullet', async ({ page }) => {
+    await page.locator('#ghost-row').click();
+    await page.keyboard.press('Backspace');
+    const lastBullet = page.locator('.bullet-row .bullet-text').last();
+    await expect(lastBullet).toBeFocused();
+  });
+
+  test('Backspace on non-empty ghost row does not navigate away', async ({ page }) => {
+    await page.locator('#ghost-row').click();
+    await page.keyboard.type('hello');
+    await page.keyboard.press('Backspace');
+    await expect(page.locator('#ghost-text')).toBeFocused();
+  });
+
   test('ArrowUp from ghost row focuses zoom title when zoomed into empty bullet', async ({ page }) => {
     // Zoom into a bullet that has no children (first bullet)
     const firstDot = page.locator('.bullet-dot').first();
@@ -1149,6 +1163,64 @@ test.describe('Multi-select', () => {
     // After move: the node that was 3rd should now be 1st
     const newFirstText = await rows.nth(0).locator('.bullet-text').textContent();
     expect(newFirstText).toBe(thirdBulletText);
+  });
+
+  test('Alt+ArrowDown moves selection down multiple times', async ({ page }) => {
+    const rows = page.locator('.bullet-row');
+    const firstText = page.locator('.bullet-text').first();
+    await firstText.click();
+
+    // Get IDs to track movement
+    const firstId = await rows.nth(0).getAttribute('data-id');
+    const secondId = await rows.nth(1).getAttribute('data-id');
+    const thirdId = await rows.nth(2).getAttribute('data-id');
+
+    // Select first two bullets
+    await page.keyboard.press('Shift+ArrowDown');
+    await expect(page.locator('.bullet-row.selected')).toHaveCount(2);
+
+    // Move selection down once: [B1,B2,B3,...] → [B3,B1,B2,...]
+    await page.keyboard.press('Alt+ArrowDown');
+    await expect(rows.nth(0)).toHaveAttribute('data-id', thirdId);
+    // Selection should still be active after first move
+    await expect(page.locator('.bullet-row.selected')).toHaveCount(2);
+
+    // Move selection down again: [B3,B1,B2,B4,...] → [B3,B4,B1,B2,...]
+    await page.keyboard.press('Alt+ArrowDown');
+    const fourthId = await rows.nth(1).getAttribute('data-id');
+    expect(fourthId).not.toBe(firstId);
+    expect(fourthId).not.toBe(secondId);
+    // The originally-selected bullets should still be selected and moved down
+    const selectedRows = page.locator('.bullet-row.selected');
+    await expect(selectedRows).toHaveCount(2);
+    await expect(selectedRows.nth(0)).toHaveAttribute('data-id', firstId);
+    await expect(selectedRows.nth(1)).toHaveAttribute('data-id', secondId);
+  });
+
+  test('Alt+ArrowUp moves selection up multiple times', async ({ page }) => {
+    const rows = page.locator('.bullet-row');
+    // Click the second bullet
+    const secondText = page.locator('.bullet-text').nth(1);
+    await secondText.click();
+
+    const firstId = await rows.nth(0).getAttribute('data-id');
+    const secondId = await rows.nth(1).getAttribute('data-id');
+    const thirdId = await rows.nth(2).getAttribute('data-id');
+
+    // Select bullets 2 and 3
+    await page.keyboard.press('Shift+ArrowDown');
+    await expect(page.locator('.bullet-row.selected')).toHaveCount(2);
+
+    // Move selection up once: [B1,B2,B3,...] → [B2,B3,B1,...]
+    await page.keyboard.press('Alt+ArrowUp');
+    await expect(rows.nth(0)).toHaveAttribute('data-id', secondId);
+    // Selection should still be active after first move
+    await expect(page.locator('.bullet-row.selected')).toHaveCount(2);
+
+    // Move up again: already at top, no change
+    await page.keyboard.press('Alt+ArrowUp');
+    await expect(rows.nth(0)).toHaveAttribute('data-id', secondId);
+    await expect(page.locator('.bullet-row.selected')).toHaveCount(2);
   });
 });
 
