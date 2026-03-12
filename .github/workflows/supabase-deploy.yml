@@ -27,7 +27,7 @@ jobs:
         with:
           version: latest
 
-      - run: supabase link --project-ref $PROJECT_ID
+      - run: supabase link --project-ref gcpdascpdrakecpknrtt
         working-directory: supabase      
       - run: supabase db push
         working-directory: supabase
