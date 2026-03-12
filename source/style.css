@@ -115,6 +115,43 @@ body {
     color: var(--text);
 }
 
+#search-btn {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 99;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: var(--search-h);
+    background: var(--surface);
+    border: none;
+    border-left: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    border-radius: 0 0 0 var(--radius);
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    opacity: 0;
+    transition: opacity var(--transition), background var(--transition), color var(--transition);
+}
+
+#search-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+#search-btn:hover {
+    opacity: 1;
+    background: var(--hover);
+    color: var(--text);
+}
+
+#search-bar.visible + #search-btn {
+    display: none;
+}
+
 /* ── Main app ── */
 #app {
     max-width: 760px;

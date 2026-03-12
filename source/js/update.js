@@ -4,7 +4,7 @@
 
 import { makeNode, findNode, flatVisible, findParentInSubtree, collectAllNodes, importMarkdown } from './model.js';
 import * as State from './state.js';
-import { render, setSyncStatus, openSearch, closeSearch, openModal } from './view.js';
+import { render, setSyncStatus, openSearch, closeSearch } from './view.js';
 
 // ── Cursor helpers ────────────────────────────────────────────────────────────
 
@@ -544,14 +544,8 @@ export function handleBulletKey(e, node) {
         const textEl = document.querySelector(`.bullet-text[data-id="${node.id}"]`);
         if (textEl && textEl.textContent === '') {
             e.preventDefault();
-            openModal('modal-shortcuts');
+            openSearch();
         }
-        return;
-    }
-
-    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-        e.preventDefault();
-        openSearch();
         return;
     }
 

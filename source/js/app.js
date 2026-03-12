@@ -202,10 +202,6 @@ bulletsEl.addEventListener('keydown', (e) => {
                 if (textEl) textEl.focus();
             }
         }
-        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-            e.preventDefault();
-            openSearch();
-        }
     }
 });
 
@@ -341,10 +337,6 @@ zoomTitleEl.addEventListener('keydown', (e) => {
         e.preventDefault();
         zoomOut();
     }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-        e.preventDefault();
-        openSearch();
-    }
 });
 
 zoomDescEl.addEventListener('keydown', (e) => {
@@ -359,10 +351,6 @@ zoomDescEl.addEventListener('keydown', (e) => {
         zoomDescEl.blur();
         zoomTitleEl.focus();
         return;
-    }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-        e.preventDefault();
-        openSearch();
     }
 });
 
@@ -401,8 +389,7 @@ document.addEventListener('keydown', (e) => {
             if (ghostText) ghostText.focus();
             return;
         }
-        if (e.key === '?') { e.preventDefault(); openModal('modal-shortcuts'); return; }
-        if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); openSearch(); return; }
+        if (e.key === '?') { e.preventDefault(); openSearch(); return; }
         if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); return; }
         if (e.key === 'ArrowDown' && !e.altKey && !e.ctrlKey && !e.metaKey) {
             const flat = flatVisible(State.getZoomRoot());
@@ -497,6 +484,7 @@ document.getElementById('search-input').addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { endSearch(); }
 });
 document.getElementById('search-close').addEventListener('click', endSearch);
+document.getElementById('search-btn').addEventListener('click', openSearch);
 
 // ── Toolbar hint ──────────────────────────────────────────────────────────────
 

@@ -178,6 +178,7 @@ Use `history.pushState` for zoom changes so back/forward work naturally. Use `hi
   <span id="search-count">
   <button id="search-close">
 </div>
+<button id="search-btn">               <!-- fixed top-right, opacity:0 by default, visible on hover; click opens search -->
 
 <div id="app">
   <div id="breadcrumb">        <!-- sticky, crumb links + separators, hidden unless .visible -->
@@ -191,7 +192,7 @@ Use `history.pushState` for zoom changes so back/forward work naturally. Use `hi
   <button id="btn-markdown">Markdown</button>    <!-- opens unified edit-as-markdown modal -->
   <span id="sync-indicator">                     <!-- sync status label (hidden when sync is off or not signed in) -->
   <button id="btn-options">Options</button>       <!-- opens options modal (theme, sign in, GitHub link) -->
-  <span class="toolbar-hint">? for shortcuts</span>   <!-- click opens shortcuts modal -->
+  <span class="toolbar-hint">shortcuts</span>              <!-- click opens shortcuts modal -->
 </div>
 
 <div id="dev-panel">           <!-- fixed right sidebar, hidden unless dev mode is on -->
@@ -307,11 +308,10 @@ Applied only on blur. While editing, raw text is shown.
 | 11       | `deleteEmpty`    | `Backspace`        | Only on empty bullet (text and description both empty); confirmation if has children |
 | 12       | `focusPrev`      | `ArrowUp`          | focus previous visible node; clears selection |
 | 13       | `focusNext`      | `ArrowDown`        | focus next visible node; clears selection |
-| 14       | `shortcuts`      | `?`                | show shortcuts (only when bullet text is empty) |
-| 15       | `search`         | `Ctrl+F`           | focus search input |
-| 16       | `undo`           | `Ctrl+Z`           | undo last structural change |
+| 14       | `search`         | `?` (Shift+/)      | open search (when bullet text is empty) |
+| 15       | `undo`           | `Ctrl+Z`           | undo last structural change |
 
-A global `keydown` listener handles `Escape` to close any open modal or the search bar, and handles `Enter` (unfocused, focuses the ghost row at the bottom), `Ctrl+F` / `?` / `Ctrl+Z` when no editable element is focused. It also handles `ArrowDown` (focus first visible node) and `ArrowUp` (focus last visible node) when no item is focused.
+A global `keydown` listener handles `Escape` to close any open modal or the search bar, and handles `Enter` (unfocused, focuses the ghost row at the bottom), `?` (Shift+/) / `Ctrl+Z` when no editable element is focused. It also handles `ArrowDown` (focus first visible node) and `ArrowUp` (focus last visible node) when no item is focused.
 
 ## Touch / mobile handling
 
@@ -400,7 +400,8 @@ Authentication is provided by [Supabase](https://supabase.com), loaded from the 
 ## Search
 
 - Fixed bar at top (`display:none` normally, `display:flex` when active via `.visible` class). When open, `#app` receives the `search-open` class to add top padding.
-- `Ctrl+F` opens it and focuses the input.
+- `Shift+/` (the `?` key) opens it and focuses the input when no editable element is focused.
+- A `#search-btn` icon button is fixed at the top-right corner (`opacity:0` by default, revealed on hover) and also opens search when clicked. It is hidden while the search bar is active.
 - On input: walk the entire `doc.root` tree (not just current zoom), collect matching IDs, show count, focus first match. Matches on **both** `text` and `description` fields.
 - `Enter` cycles through matches.
 - `Escape` closes and clears, then focuses the last highlighted match.
@@ -428,8 +429,8 @@ The seed data in Markdown format:
     > Returns to the parent level. You can also press Escape while editing the zoom title, or click any crumb in the breadcrumb bar.
 - Press **Shift+Enter** to add a description to any bullet
   > Descriptions appear below the bullet text in a smaller muted font. Press Shift+Enter or Escape from the description to return to the bullet text. Click the description preview to edit it again.
-- Use `Ctrl+F` to search your entire outline
-  > Search matches both bullet text and descriptions across the whole document, not just the current zoom level. Press Enter to cycle through matches, Escape to close.
+- Use `Shift+/` to search your entire outline
+  > Search matches both bullet text and descriptions across the whole document, not just the current zoom level. Press Enter to cycle through matches, Escape to close. You can also hover over the top-right corner to reveal the search button.
 - Use `Ctrl+Z` to undo and the **Markdown** button to export
   > Undo reverses the last structural change (create, delete, move, indent). The Markdown toolbar button opens a live editor showing your full outline — edit it directly and click Apply to import changes.
 ```

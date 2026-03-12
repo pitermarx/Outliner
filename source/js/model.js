@@ -38,8 +38,8 @@ export function seedDoc(doc) {
         ], 'Reorders siblings without changing their depth or children. Use Ctrl+Space to collapse or expand a bullet\'s children.'),
         makeNode('Press **Shift+Enter** to add a description to any bullet', [],
             'Descriptions appear below the bullet text in a smaller muted font. Press Shift+Enter or Escape from the description to return to the bullet text. Click the description preview to edit it again.'),
-        makeNode('Use `Ctrl+F` to search your entire outline', [],
-            'Search matches both bullet text and descriptions across the whole document, not just the current zoom level. Press Enter to cycle through matches, Escape to close.'),
+        makeNode('Use `Shift+/` to search your entire outline', [],
+            'Search matches both bullet text and descriptions across the whole document, not just the current zoom level. Press Enter to cycle through matches, Escape to close. You can also hover over the top-right corner to reveal the search button.'),
         makeNode('Use `Ctrl+Z` to undo and the **Markdown** button to export', [],
             'Undo reverses the last structural change (create, delete, move, indent). The Markdown toolbar button opens a live editor showing your full outline — edit it directly and click Apply to import changes.'),
     ];

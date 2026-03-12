@@ -454,25 +454,40 @@ test.describe('Description', () => {
 });
 
 test.describe('Search', () => {
-  test('Ctrl+F opens search bar', async ({ page }) => {
-    await page.keyboard.press('Control+f');
+  test('Shift+/ opens search bar', async ({ page }) => {
+    // Click then Escape to ensure page has focus but no editable element is active
+    await page.locator('.bullet-text').first().click();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('?');
+    await expect(page.locator('#search-bar')).toBeVisible();
+  });
+
+  test('search button is visible on hover at top', async ({ page }) => {
+    const btn = page.locator('#search-btn');
+    await btn.hover();
+    await expect(btn).toBeVisible();
+  });
+
+  test('search button click opens search bar', async ({ page }) => {
+    const btn = page.locator('#search-btn');
+    await btn.click();
     await expect(page.locator('#search-bar')).toBeVisible();
   });
 
   test('search highlights matching bullets', async ({ page }) => {
-    await page.keyboard.press('Control+f');
+    await page.locator('#search-btn').click();
     await page.locator('#search-input').fill('Tab');
     await expect(page.locator('.bullet-row.search-match').first()).toBeVisible();
   });
 
   test('Escape closes search bar', async ({ page }) => {
-    await page.keyboard.press('Control+f');
+    await page.locator('#search-btn').click();
     await page.locator('#search-input').press('Escape');
     await expect(page.locator('#search-bar')).toBeHidden();
   });
 
   test('search count updates when typing', async ({ page }) => {
-    await page.keyboard.press('Control+f');
+    await page.locator('#search-btn').click();
     await page.locator('#search-input').fill('Tab');
     const count = page.locator('#search-count');
     await expect(count).not.toHaveText('');
@@ -1043,14 +1058,19 @@ test.describe('Escape to unfocus', () => {
     await expect(firstText).not.toBeFocused();
   });
 
-  test('? shortcut opens shortcuts modal after Escape unfocuses bullet', async ({ page }) => {
+  test('? shortcut opens search bar after Escape unfocuses bullet', async ({ page }) => {
     const firstText = page.locator('.bullet-text').first();
     await firstText.click();
     await page.keyboard.press('Escape');
 
-    // Now no bullet is focused; ? should open shortcuts modal
+    // Now no bullet is focused; ? should open search
     await page.keyboard.press('?');
 
+    await expect(page.locator('#search-bar')).toBeVisible();
+  });
+
+  test('shortcuts modal opens via toolbar hint click', async ({ page }) => {
+    await page.locator('.toolbar-hint').click();
     await expect(page.locator('#modal-shortcuts')).not.toHaveClass(/hidden/);
   });
 });
