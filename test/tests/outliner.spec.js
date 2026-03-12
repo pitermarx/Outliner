@@ -1804,17 +1804,15 @@ test.describe('Preview index page', () => {
 test.describe('Screenshots', () => {
   const screenshotsDir = path.resolve('..', 'source', 'screenshots');
 
-  test.beforeEach(async ({ page }) => {
-    fs.mkdirSync(screenshotsDir, { recursive: true });
-  });
-
   test('capture main outliner view', async ({ page }) => {
+    fs.mkdirSync(screenshotsDir, { recursive: true });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.screenshot({ path: path.join(screenshotsDir, 'main.png') });
     expect(fs.existsSync(path.join(screenshotsDir, 'main.png'))).toBe(true);
   });
 
   test('capture dark mode view', async ({ page }) => {
+    fs.mkdirSync(screenshotsDir, { recursive: true });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.locator('#btn-options').click();
     await page.locator('#btn-toggle-theme').click();
@@ -1824,6 +1822,7 @@ test.describe('Screenshots', () => {
   });
 
   test('capture markdown modal', async ({ page }) => {
+    fs.mkdirSync(screenshotsDir, { recursive: true });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.locator('#btn-markdown').click();
     await expect(page.locator('#modal-markdown')).toBeVisible();
