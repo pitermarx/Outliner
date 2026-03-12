@@ -297,17 +297,39 @@ export async function syncNow() {
 
     setSyncStatus('syncing');
     try {
-        const { data: row, error: fetchErr } = await supabaseClient
+        // Fetch only the version first to avoid downloading data unnecessarily.
+        const { data: versionRow, error: versionErr } = await supabaseClient
             .from(State.SYNC_TABLE)
-            .select('version, data')
+            .select('version')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+
+        if (versionErr) throw versionErr;
+
+        const serverVersion = versionRow ? versionRow.version : 0;
+        const isInitialSync = State.lastSyncedVersion === 0;
+
+        // If the server version hasn't changed and there's nothing pending locally, we're in sync.
+        if (!isInitialSync && serverVersion === State.lastSyncedVersion && !State.pendingSync) {
+            setSyncStatus('synced');
+            return;
+        }
+
+        // A full data fetch is needed — either to pull a new version, resolve a conflict, or push.
+        // Only select 'data'; version is already known from the lightweight first query.
+        const { data: dataRow, error: fetchErr } = await supabaseClient
+            .from(State.SYNC_TABLE)
+            .select('data')
             .eq('user_id', session.user.id)
             .maybeSingle();
 
         if (fetchErr) throw fetchErr;
 
-        const serverVersion = row ? row.version : 0;
+        // Re-attach the already-known version so downstream helpers (pullFromServer, handleConflict)
+        // can use it without an extra round-trip.
+        const row = dataRow ? { ...dataRow, version: serverVersion } : null;
 
-        if (State.lastSyncedVersion === 0) {
+        if (isInitialSync) {
             if (!row) {
                 await pushToServer(session.user.id, 0);
             } else if (!State.doc.root.children.length) {
