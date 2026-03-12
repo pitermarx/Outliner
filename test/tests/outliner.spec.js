@@ -465,7 +465,7 @@ test.describe('Search', () => {
   test('search button is visible on hover at top', async ({ page }) => {
     const btn = page.locator('#search-btn');
     await btn.hover();
-    await expect(btn).toBeVisible();
+    await expect(btn).toHaveCSS('opacity', '1');
   });
 
   test('search button click opens search bar', async ({ page }) => {
