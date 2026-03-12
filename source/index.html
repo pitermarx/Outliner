@@ -1893,6 +1893,15 @@
                         document.getElementById('zoom-title').focus();
                     }
                 }
+                if (e.key === 'Backspace' && textEl.textContent === '') {
+                    e.preventDefault();
+                    const flat = flatVisible();
+                    if (flat.length > 0) {
+                        focusNode(flat[flat.length - 1].node.id);
+                    } else if (zoomStack.length > 0) {
+                        document.getElementById('zoom-title').focus();
+                    }
+                }
             });
 
             row.addEventListener('click', () => textEl.focus());
@@ -2653,7 +2662,12 @@
             }
             saveDoc();
             render();
-            requestAnimationFrame(() => applySelectionHighlights());
+            requestAnimationFrame(() => {
+                applySelectionHighlights();
+                _keepSelection = true;
+                focusNode(selectionHead);
+                _keepSelection = false;
+            });
         }
 
         function focusPrev(id) {
