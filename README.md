@@ -31,6 +31,22 @@ source/
 
 ---
 
+## CI
+
+### E2E tests & auto-merge (`ci.yml`)
+
+Runs on every push to `main`, on every pull request targeting `main`, and on manual `workflow_dispatch`.
+
+**E2E Tests job** — installs Node 24, runs `npm ci` and `npx playwright install chromium firefox`, then executes `npm run test:ci` in the `test/` directory against both browsers. On completion (pass or fail), test artifacts (`test-results/` and `playwright-report/`) are uploaded with a 30-day retention policy. A Markdown summary with total / passed / failed / flaky / skipped counts — and error snippets for each failing test — is appended to the GitHub step summary.
+
+**Auto Rebase and Merge PR job** — runs only on pull requests, only after the E2E Tests job succeeds. Calls `gh pr merge --rebase --delete-branch` to rebase the PR onto `main`, merge it, and delete the source branch automatically.
+
+### Daily E2E tests (`daily-tests.yml`)
+
+Runs every day at **06:00 UTC** (and on manual `workflow_dispatch`). Before running the Playwright suite it replaces the `__SUPABASE_PROJECT__` and `__SUPABASE_PUBLISHABLE_DEFAULT_KEY__` placeholders in `source/js/state.js` with the repository variables of the same name (via `sed` in the transient CI checkout — nothing is committed). This lets the tests exercise the real production backend. Artifacts are uploaded with a 30-day retention policy under the name `daily-playwright-results`, and a pass/fail summary is written to the GitHub step summary.
+
+---
+
 ## Deployment
 
 ### Production (main branch)
