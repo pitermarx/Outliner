@@ -33,13 +33,36 @@ source/
 
 ## CI
 
-### E2E tests & auto-merge (`ci.yml`)
+There are two workflow files:
 
-Runs on every push to `main`, on every pull request targeting `main`, and on manual `workflow_dispatch`.
+| Workflow | File | Trigger |
+|---|---|---|
+| **CI** | `ci.yml` | Every push to any branch, manual |
+| **Daily Tests** | `daily-tests.yml` | Every day at 06:00 UTC, manual |
 
-**E2E Tests job** — installs Node 24, runs `npm ci` and `npx playwright install chromium firefox`, then executes `npm run test:ci` in the `test/` directory against both browsers. On completion (pass or fail), test artifacts (`test-results/` and `playwright-report/`) are uploaded with a 30-day retention policy. A Markdown summary with total / passed / failed / flaky / skipped counts — and error snippets for each failing test — is appended to the GitHub step summary.
+### CI (`ci.yml`)
 
-**Auto Rebase and Merge PR job** — runs only on pull requests, only after the E2E Tests job succeeds. Calls `gh pr merge --rebase --delete-branch` to rebase the PR onto `main`, merge it, and delete the source branch automatically.
+Runs on every push to any branch (and on manual `workflow_dispatch`). Jobs are strictly sequential — no parallelism.
+
+```
+push (any branch)
+  └─ test
+       └─ deploy-db  [main only]
+            └─ deploy  [main only]
+```
+
+**1 — `test` (E2E Tests)** — always runs. Installs Node 24, runs `npm ci` and `npx playwright install chromium firefox`, then executes `npm run test:ci` against both browsers. Uploads artifacts (`test-results/`, `playwright-report/`) with a 30-day retention policy and writes a pass/fail step summary.
+
+**2 — `deploy-db` (Deploy DB Migrations)** — runs on `main` only, after `test` succeeds. Links to the Supabase project and calls `supabase db push` to apply any pending migrations. Protected by the `supabase-production` environment (add required reviewers there to gate deployments). Uses the `SUPABASE_ACCESS_TOKEN` repository secret.
+
+**3 — `deploy` (Deploy to GitHub Pages)** — runs on `main` only, after `deploy-db` succeeds. Builds a combined `_site/` directory containing:
+
+- `main` branch source at the site root (`/`)
+- Every currently-open PR branch at `/preview/<safe-branch>/` (fetched via `gh pr list`)
+
+Supabase config placeholders are substituted across all `state.js` files in `_site/`. The artifact is then deployed to GitHub Pages and the Cloudflare cache is purged. Because open PRs are enumerated at deploy time, stale previews for closed/merged branches disappear automatically — no separate cleanup step is needed.
+
+Branch names are sanitised (non-alphanumeric characters replaced with `-`) before being used as URL path segments.
 
 ### Daily E2E tests (`daily-tests.yml`)
 
@@ -49,27 +72,7 @@ Runs every day at **06:00 UTC** (and on manual `workflow_dispatch`). Before runn
 
 ## Deployment
 
-### Production (main branch)
-
-The `deploy.yml` workflow deploys the `source/` directory to **GitHub Pages** on every push to `main` (and on manual `workflow_dispatch`).
-
-### PR preview deployments
-
-The `deploy-preview.yml` workflow runs on every pull request targeting `main`:
-
-- **On PR open / push**: builds a combined GitHub Pages artifact containing:
-  - `main` branch content at the site root (`/`)
-  - PR branch content at `/preview/<branch-name>/`
-
-  After deployment a comment is posted (or updated) on the PR with links to both URLs so you can open the current version and the branch version side-by-side in two tabs.
-
-- **On PR close / merge**: re-deploys from `main` only, removing the preview subdirectory.
-
-Branch names are sanitised (non-alphanumeric characters replaced with `-`) before being used as path segments.
-
-### Supabase migrations (`supabase-deploy.yml`)
-
-The `supabase-deploy.yml` workflow runs on every push to `main` that touches `supabase/migrations/**` (and on manual `workflow_dispatch`). It applies all pending database migrations to the live Supabase project using `supabase db push`. See the **Infrastructure as code** section under **Supabase cloud sync** for setup details.
+Deployment is handled entirely by the `deploy` job in `ci.yml` (see the **CI** section above). There are no separate deployment workflows.
 
 ### Preview index page (`/preview/`)
 
@@ -108,7 +111,7 @@ supabase/
     20240101000000_initial_schema.sql      Creates the `outlines` table and RLS policy
 ```
 
-Whenever a file under `supabase/migrations/` is pushed to `main`, the `supabase-deploy.yml` workflow automatically applies the pending migrations to the live project using `supabase db push`.
+Whenever a file under `supabase/migrations/` is pushed to `main`, the `deploy-db` job in `ci.yml` automatically applies the pending migrations to the live project using `supabase db push`.
 
 #### Required secret
 
@@ -135,7 +138,7 @@ supabase migration new <description>
 # e.g. supabase migration new add_index_on_updated_at
 
 # Edit the generated file under supabase/migrations/, then push to main
-# The supabase-deploy.yml workflow will deploy it automatically.
+# The deploy-db job in ci.yml will deploy it automatically.
 ```
 
 ### Security considerations
@@ -146,9 +149,9 @@ Running database migrations from CI introduces several attack vectors. The ones 
 |---|---|---|
 | **Mutable action reference** | `supabase/setup-cli@v1` points at a moving branch. If the upstream repo is compromised the next run executes attacker code with access to the token. | Action pinned to an immutable commit SHA (`b60b5899…`). Update the SHA deliberately when upgrading. |
 | **`version: latest` binary download** | Downloads the most recent CLI release from GitHub Releases on every run. A CDN compromise or account takeover could serve a malicious binary. | Pinned to an explicit version (`1.6.0`). |
-| **Unreviewed path to production** | `ci.yml` auto-merges any PR that passes E2E tests. Those tests are purely browser-based and never inspect SQL files, so a migration PR lands on `main` — and triggers deployment — without a human reviewing the SQL. | The deployment job uses `environment: supabase-production`. Add required reviewers to that environment in GitHub Settings → Environments so no deployment proceeds without explicit approval, even after auto-merge. |
+| **Unreviewed path to production** | Migrations reach `main` — and trigger `deploy-db` — as soon as a PR is merged, without any human reviewing the SQL unless an environment gate is configured. | The `deploy-db` job uses `environment: supabase-production`. Add required reviewers to that environment in GitHub Settings → Environments so no deployment proceeds without explicit approval. |
 | **No deployment gate** | Without an environment, the workflow fires immediately on every qualifying push with no approval step. | Addressed by `environment: supabase-production` above. |
-| **Parallel migration runs** | Two quick pushes could start two `supabase db push` processes simultaneously, risking duplicate migrations or Supabase migration-table corruption. | `concurrency: group: supabase-deploy, cancel-in-progress: false` serialises runs; the second waits for the first to finish. |
+| **Parallel migration runs** | Two quick pushes to `main` could start two `supabase db push` processes simultaneously, risking duplicate migrations or migration-table corruption. | The `ci-refs/heads/main` concurrency group uses `cancel-in-progress: false` for `main` pushes, so a second run queues rather than interrupting an active migration. Feature-branch runs still cancel eagerly. |
 | **Broad access token scope** | A Supabase personal access token grants access to **all projects** in the account, not just this one. A leaked token is account-wide. | Rotate the token regularly. Consider creating a dedicated Supabase account that owns only this project. The Supabase CLI does not support project-scoped tokens at this time. |
 | **No rollback** | SQL migrations are irreversible by default. A destructive statement goes to production with no automated rollback path. | Review migration files carefully before merging. For destructive changes, test against a staging project first. Add rollback SQL as a new migration if needed. |
 

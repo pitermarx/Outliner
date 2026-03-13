@@ -2,18 +2,18 @@ name: CI
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 permissions:
   contents: read
   checks: write
-  pull-requests: write
 
 jobs:
   test:
@@ -39,7 +39,6 @@ jobs:
         working-directory: test
 
       - name: Run E2E tests
-        id: tests
         run: npm run test:ci
         working-directory: test
         env:
@@ -56,7 +55,7 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-      - name: Summarize test results for AI agent
+      - name: Summarize test results
         if: always()
         run: |
           if [ -f test/test-results/results.json ]; then
@@ -104,17 +103,92 @@ jobs:
             echo "⚠️ No test results file found." >> $GITHUB_STEP_SUMMARY
           fi
 
-  auto-merge:
-    name: Auto Rebase and Merge PR
+  deploy-db:
+    name: Deploy DB Migrations
     needs: test
-    if: github.event_name == 'pull_request'
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: supabase-production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 1.6.0
+
+      - run: supabase link --project-ref ${{ vars.SUPABASE_PROJECT }}
+        working-directory: supabase
+
+      - run: supabase db push
+        working-directory: supabase
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: deploy-db
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
+      pages: write
+      id-token: write
+      pull-requests: read
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     steps:
-      - name: Rebase, merge and delete branch
-        run: gh pr merge --rebase --delete-branch "$PR_URL"
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build site with all open PR previews
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p _site
+          cp -r source/. _site/
+
+          gh pr list --repo "$GITHUB_REPOSITORY" --state open --json headRefName \
+            --jq '.[].headRefName' | \
+          while IFS= read -r branch; do
+            SAFE=$(echo "$branch" | sed 's/[^a-zA-Z0-9._-]/-/g')
+            mkdir -p "_site/preview/$SAFE"
+            git fetch --depth=1 origin "$branch" && \
+            git archive FETCH_HEAD -- source | tar --strip-components=1 -C "_site/preview/$SAFE/" -x || \
+            echo "Warning: Could not fetch or extract preview for branch $branch - preview will be skipped"
+          done
+
+      - name: Inject Supabase config
+        env:
+          SUPABASE_PROJECT: ${{ vars.SUPABASE_PROJECT }}
+          SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ vars.SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
+        run: |
+          find _site -name "state.js" -exec sed -i "s|__SUPABASE_PROJECT__|$SUPABASE_PROJECT|g" {} \;
+          find _site -name "state.js" -exec sed -i "s|__SUPABASE_PUBLISHABLE_DEFAULT_KEY__|$SUPABASE_PUBLISHABLE_DEFAULT_KEY|g" {} \;
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: '_site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Purge Cloudflare cache
+        env:
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          curl --fail-with-body \
+            --request POST \
+            --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data '{"purge_everything":true}' \
+            "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache"
