@@ -1,8 +1,3 @@
--- Seed the tester@virgulas.com test account so it can be used in automated tests.
--- The user is created in auth.users (password: virgulas).
--- No outline data is seeded because encryption is client-side and passphrase-dependent.
-
--- Create the test user in auth if it does not already exist.
 INSERT INTO auth.users (
     instance_id,
     id,
