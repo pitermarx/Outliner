@@ -136,8 +136,8 @@ jobs:
     if: |
       always() &&
       needs.test.result == 'success' &&
-      (needs.deploy-db.result == 'success' || needs.deploy-db.result == 'skipped') &&
-      github.event_name == 'push'
+      needs.deploy-db.result == 'success' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -160,16 +160,8 @@ jobs:
         run: |
           mkdir -p _site
 
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            # On main: current source IS the main site
-            cp -r source/. _site/
-          else
-            # On non-main: fetch main branch source for the root site.
-            # `git archive -- source` archives the source/ directory; --strip-components=1
-            # removes the leading "source/" prefix so files land directly in _site/.
-            git fetch --depth=1 origin main
-            git archive origin/main -- source | tar --strip-components=1 -C "_site/" -x
-          fi
+          # Deploy current source as the main site
+          cp -r source/. _site/
 
           # Build previews for all open PRs.
           # Dots are excluded from SAFE to prevent ".." path traversal.
@@ -204,7 +196,6 @@ jobs:
         uses: actions/deploy-pages@v4
 
       - name: Purge Cloudflare cache
-        if: github.ref == 'refs/heads/main'
         env:
           CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
