@@ -198,7 +198,7 @@ export async function handleLoginSubmit(loginMode) {
     // Pull server data and overwrite local
     const { data: serverRow } = await supabaseClient
         .from(State.SYNC_TABLE)
-        .select('data, version, theme')
+        .select('data, version')
         .eq('user_id', userId)
         .maybeSingle();
 
@@ -208,11 +208,6 @@ export async function handleLoginSubmit(loginMode) {
             const remoteDoc = payload.doc || payload;
             State.setDoc(remoteDoc);
             State.saveDocLocal();
-    const theme = payload.theme ?? serverRow.theme;
-            if (theme) {
-                localStorage.setItem(State.THEME_KEY, theme);
-                applyTheme(theme);
-            }
             State.setLastSyncedVersion(serverRow.version);
             State.setLastSyncedDocJson(JSON.stringify(State.doc));
             localStorage.setItem(State.SYNC_VERSION_KEY, String(serverRow.version));
@@ -295,14 +290,12 @@ async function pushToServer(userId, baseServerVersion) {
 
     const encryptedDoc = await State.encryptPayload(State.doc);
     const saltB64 = localStorage.getItem(State.ENCRYPTION_SALT_KEY);
-    const theme = localStorage.getItem(State.THEME_KEY) || 'light';
 
     const { error } = await supabaseClient.from(State.SYNC_TABLE).upsert({
         user_id: userId,
         data: encryptedDoc,
         version: newVersion,
         updated_at: new Date().toISOString(),
-        theme,
         ...(saltB64 ? { salt: saltB64 } : {})
     }, { onConflict: 'user_id' });
 
@@ -322,12 +315,6 @@ async function pullFromServer(row) {
 
     State.setDoc(remoteDoc);
     State.saveDocLocal();
-
-    const theme = payload.theme ?? row.theme;
-    if (theme) {
-        localStorage.setItem(State.THEME_KEY, theme);
-        applyTheme(theme);
-    }
 
     State.setLastSyncedVersion(row.version);
     State.setLastSyncedDocJson(JSON.stringify(State.doc));
@@ -466,7 +453,7 @@ export async function syncNow() {
 
         // Server is newer — pull
         const { data: dataRow, error: fErr } = await supabaseClient
-            .from(State.SYNC_TABLE).select('data, theme')
+            .from(State.SYNC_TABLE).select('data')
             .eq('user_id', session.user.id).maybeSingle();
         if (fErr) throw fErr;
 
