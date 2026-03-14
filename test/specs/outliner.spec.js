@@ -240,6 +240,16 @@ test.describe('Swipe to indent/unindent (mobile)', () => {
     const marginAfterUnindent = await secondRow.evaluate(el => el.style.marginLeft);
     expect(marginAfterUnindent).not.toBe(marginAfterIndent);
   });
+
+  test('swipe does not leave any bullet focused', async ({ page, browserName }) => {
+    test.skip(browserName === 'firefox', 'Touch constructor not available in non-touch Firefox');
+    const secondRow = page.locator('.bullet-row').nth(1);
+    const secondRowId = await secondRow.getAttribute('data-id');
+
+    await simulateSwipe(page, `.bullet-row[data-id="${secondRowId}"]`, 80);
+
+    await expect(page.locator('.bullet-row.focused')).toHaveCount(0);
+  });
 });
 
 test.describe('Moving bullets', () => {
@@ -1094,8 +1104,8 @@ test.describe('Mobile top spacing', () => {
     const paddingTop = await page.locator('#app').evaluate(el =>
       parseFloat(getComputedStyle(el).paddingTop)
     );
-    // On mobile (≤600px wide) the padding-top should be 8px, not the desktop 52px
-    expect(paddingTop).toBe(8);
+    // On mobile (≤600px wide) the padding-top should be 20px, not the desktop 52px
+    expect(paddingTop).toBe(20);
   });
 
   test('desktop top padding of #app is larger than mobile', async ({ page }) => {
@@ -1105,7 +1115,7 @@ test.describe('Mobile top spacing', () => {
     const paddingTop = await page.locator('#app').evaluate(el =>
       parseFloat(getComputedStyle(el).paddingTop)
     );
-    expect(paddingTop).toBeGreaterThan(8);
+    expect(paddingTop).toBeGreaterThan(20);
   });
 });
 
@@ -1979,5 +1989,29 @@ test.describe('Sync – login with seed user', () => {
     await page.click('#btn-login-submit');
 
     await expect(page.locator('#login-error')).not.toHaveClass(/hidden/, { timeout: 15000 });
+  });
+});
+
+test.describe('Link clicks in bullet text', () => {
+  test('pointerdown on a rendered link does not put bullet into edit mode', async ({ page }) => {
+    const firstText = page.locator('.bullet-text').first();
+    await firstText.click();
+    await firstText.fill('[click me](https://example.com)');
+    await page.keyboard.press('Escape');
+
+    // Link should be rendered as an <a> element
+    const link = firstText.locator('a');
+    await expect(link).toBeAttached();
+
+    // Simulate a pointerdown on the link (as a mobile tap would before focusin fires)
+    await link.evaluate(el => {
+      el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+    });
+
+    // Bullet should NOT be in edit mode: the <a> tag must still be present
+    // (edit mode would clear innerHTML to raw text, removing the <a>)
+    await expect(link).toBeAttached();
+    const firstRow = page.locator('.bullet-row').first();
+    await expect(firstRow).not.toHaveClass(/focused/);
   });
 });
