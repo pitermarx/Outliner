@@ -279,11 +279,20 @@ bulletsEl.addEventListener('touchend', (e) => {
         const dx = e.changedTouches[0].clientX - (row.dataset.touchStartX || 0);
         const dy = e.changedTouches[0].clientY - (row.dataset.touchStartY || 0);
         if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 2) {
-            if (dx > 0) indentNode(id);
-            else unindentNode(id);
+            if (dx > 0) indentNode(id, true);
+            else unindentNode(id, true);
         }
     }
 }, { passive: true });
+
+bulletsEl.addEventListener('pointerdown', (e) => {
+    const link = e.target.closest('a');
+    const bulletText = e.target.closest('.bullet-text[data-id]');
+    if (link && bulletText && document.activeElement !== bulletText) {
+        e.preventDefault();
+        window.open(link.href, '_blank', 'noopener,noreferrer');
+    }
+});
 
 // ── Zoom desc ─────────────────────────────────────────────────────────────────
 

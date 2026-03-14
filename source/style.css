@@ -129,11 +129,21 @@ body {
 
 @media (max-width: 600px) {
     #app {
-        padding-top: 8px;
+        padding-top: 20px;
     }
 
     #app.search-open {
         padding-top: calc(var(--search-h) + 4px);
+    }
+
+    #zoom-desc:empty {
+        min-height: 0;
+        padding: 0;
+        margin-bottom: 0;
+    }
+
+    #zoom-desc:empty::before {
+        display: none;
     }
 }
 

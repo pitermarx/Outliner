@@ -113,7 +113,9 @@ export function zoomInto(id) {
     State.updateHash();
     render();
     requestAnimationFrame(() => {
-        document.getElementById('zoom-desc').focus();
+        if (!('ontouchstart' in window)) {
+            document.getElementById('zoom-desc').focus();
+        }
     });
 }
 
@@ -256,7 +258,7 @@ export function copySelectionAsMarkdown(ids) {
     });
 }
 
-export function indentNode(id) {
+export function indentNode(id, noFocus = false) {
     const zoomRoot = State.getZoomRoot();
     const parent = findParentInSubtree(id, zoomRoot);
     if (!parent) return;
@@ -270,10 +272,10 @@ export function indentNode(id) {
     prevSibling.children.push(node);
     State.saveDoc();
     render();
-    requestAnimationFrame(() => focusNode(id));
+    if (!noFocus) requestAnimationFrame(() => focusNode(id));
 }
 
-export function unindentNode(id) {
+export function unindentNode(id, noFocus = false) {
     const zoomRoot = State.getZoomRoot();
     const parent = findParentInSubtree(id, zoomRoot);
     if (!parent || parent === zoomRoot) return;
@@ -288,7 +290,7 @@ export function unindentNode(id) {
     grandParent.children.splice(parentIdx + 1, 0, node);
     State.saveDoc();
     render();
-    requestAnimationFrame(() => focusNode(id));
+    if (!noFocus) requestAnimationFrame(() => focusNode(id));
 }
 
 export function moveNode(id, dir) {
