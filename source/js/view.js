@@ -72,6 +72,31 @@ export function showToast(message) {
 
 // ── Sync indicator ────────────────────────────────────────────────────────────
 
+// SVG icons for each sync state (14×14 viewBox)
+function syncSvg(status) {
+    if (status === 'online') {
+        // Cloud icon: always-on indicator that sync is active
+        return `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 10a2.5 2.5 0 0 1 0-5h.3A4 4 0 1 1 11 8"/><path d="M9 10l1.5 1.5 3-3" stroke-width="1.6"/></svg>`;
+    }
+    if (status === 'pending') {
+        // Cloud with upload arrow
+        return `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 10.5a2.5 2.5 0 0 1 0-5h.3A4 4 0 1 1 11.5 9"/><line x1="7" y1="13" x2="7" y2="8"/><polyline points="5,10 7,8 9,10"/></svg>`;
+    }
+    if (status === 'synced') {
+        // Checkmark
+        return `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2,7 5.5,11 12,3.5"/></svg>`;
+    }
+    if (status === 'error') {
+        // Warning triangle
+        return `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 1L13 13H1L7 1Z"/><line x1="7" y1="5.5" x2="7" y2="8.5"/><circle cx="7" cy="11" r="0.5" fill="currentColor"/></svg>`;
+    }
+    if (status === 'conflict') {
+        // Lightning bolt
+        return `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="8.5,1 5,7.5 8,7.5 5.5,13"/></svg>`;
+    }
+    return '';
+}
+
 export function setSyncStatus(status) {
     State.setSyncStatusVar(status);
     const el = document.getElementById('sync-indicator');
@@ -79,22 +104,68 @@ export function setSyncStatus(status) {
     el.className = '';
     el.innerHTML = '';
     el.onclick = null;
+    el.title = '';
     if (status === 'idle') return;
     el.classList.add('visible', status);
     if (status === 'syncing') {
-        el.innerHTML = '<span class="sync-spinner"></span><span>Syncing…</span>';
+        el.innerHTML = '<span class="sync-spinner" aria-hidden="true"></span>';
+        el.title = 'Syncing…';
     } else if (status === 'synced') {
-        el.innerHTML = '<span class="sync-dot"></span><span>Synced</span>';
-        setTimeout(() => { if (State.syncStatus === 'synced') setSyncStatus('idle'); }, 3000);
+        el.innerHTML = syncSvg('synced');
+        el.title = 'Synced';
+        setTimeout(() => { if (State.syncStatus === 'synced') setSyncStatus('online'); }, 3000);
     } else if (status === 'pending') {
-        el.innerHTML = '<span class="sync-dot"></span><span>Pending</span>';
+        el.innerHTML = syncSvg('pending');
+        el.title = 'Pending sync';
     } else if (status === 'error') {
-        el.innerHTML = '<span class="sync-dot"></span><span>Sync error</span>';
+        el.innerHTML = syncSvg('error');
+        el.title = 'Sync error';
     } else if (status === 'conflict') {
-        el.innerHTML = '<span class="sync-dot"></span><span>Conflict – click to resolve</span>';
+        el.innerHTML = syncSvg('conflict');
+        el.title = 'Conflict – click to resolve';
         el.onclick = () => openModal('modal-conflict');
+    } else if (status === 'online') {
+        el.innerHTML = syncSvg('online');
+        el.title = 'Online sync active';
     }
     if (State.devMode) renderDevPanel();
+}
+
+// ── Storage indicator ─────────────────────────────────────────────────────────
+
+const STORAGE_LIMIT_BYTES = 20 * 1024; // 20 KB non-enforced limit
+
+export function updateStorageIndicator() {
+    const el = document.getElementById('storage-indicator');
+    if (!el) return;
+    const raw = localStorage.getItem(State.STORAGE_KEY) || '';
+    const bytes = new TextEncoder().encode(raw).length;
+    const ratio = Math.min(bytes / STORAGE_LIMIT_BYTES, 1);
+    const pct = Math.round(ratio * 100);
+    const kbUsed = (bytes / 1024).toFixed(1);
+    const kbLimit = (STORAGE_LIMIT_BYTES / 1024).toFixed(0);
+
+    // Color: green < 60%, yellow 60–85%, red > 85%
+    let color;
+    if (ratio < 0.6) color = '#4caf50';
+    else if (ratio < 0.85) color = '#ff9800';
+    else color = 'var(--danger)';
+
+    // Mini pie chart using SVG circle stroke-dasharray trick
+    // Circle r=5, circumference ≈ 31.42
+    const r = 5;
+    const circ = 2 * Math.PI * r;
+    const filled = circ * ratio;
+    const empty = circ - filled;
+
+    el.classList.add('visible');
+    el.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+      <circle cx="7" cy="7" r="${r}" fill="none" stroke="var(--border)" stroke-width="2.5"/>
+      <circle cx="7" cy="7" r="${r}" fill="none" stroke="${color}" stroke-width="2.5"
+        stroke-dasharray="${filled.toFixed(2)} ${empty.toFixed(2)}"
+        transform="rotate(-90 7 7)"/>
+    </svg>`;
+    el.title = `Data: ${kbUsed} KB / ${kbLimit} KB${ratio >= 1 ? ' – over limit!' : ` (${pct}%)`}`;
 }
 
 

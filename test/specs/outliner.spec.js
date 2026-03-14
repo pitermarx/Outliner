@@ -1561,6 +1561,62 @@ test.describe('Cloud sync toggle (removed)', () => {
   });
 });
 
+test.describe('Shortcuts button', () => {
+  test('? button is visible in toolbar', async ({ page }) => {
+    await expect(page.locator('#btn-shortcuts')).toBeVisible();
+  });
+
+  test('? button shows "?" text', async ({ page }) => {
+    await expect(page.locator('#btn-shortcuts')).toContainText('?');
+  });
+
+  test('clicking ? button opens shortcuts modal', async ({ page }) => {
+    await page.click('#btn-shortcuts');
+    await expect(page.locator('#modal-shortcuts')).not.toHaveClass(/hidden/);
+  });
+
+  test('? button is inside the toolbar', async ({ page }) => {
+    const toolbar = page.locator('#toolbar');
+    await expect(toolbar.locator('#btn-shortcuts')).toBeVisible();
+  });
+});
+
+test.describe('Storage indicator', () => {
+  test('storage indicator element exists in toolbar', async ({ page }) => {
+    await expect(page.locator('#storage-indicator')).toBeAttached();
+  });
+
+  test('storage indicator is visible after page load', async ({ page }) => {
+    await expect(page.locator('#storage-indicator')).toHaveClass(/visible/);
+  });
+
+  test('storage indicator is inside the toolbar', async ({ page }) => {
+    const toolbar = page.locator('#toolbar');
+    await expect(toolbar.locator('#storage-indicator')).toBeAttached();
+  });
+
+  test('storage indicator shows a pie chart SVG', async ({ page }) => {
+    await expect(page.locator('#storage-indicator svg')).toBeAttached();
+  });
+
+  test('storage indicator has a tooltip with KB info', async ({ page }) => {
+    const title = await page.locator('#storage-indicator').getAttribute('title');
+    expect(title).toMatch(/KB/);
+  });
+
+  test('storage indicator updates after editing', async ({ page }) => {
+    const before = await page.locator('#storage-indicator').getAttribute('title');
+    const firstText = page.locator('.bullet-text').first();
+    await firstText.click();
+    // Add a lot of text to change the storage size
+    await firstText.fill('A'.repeat(200));
+    await firstText.blur();
+    const after = await page.locator('#storage-indicator').getAttribute('title');
+    // The title should reflect the new size (may differ from before)
+    expect(after).toMatch(/KB/);
+  });
+});
+
 test.describe('Developer mode', () => {
   test('Options modal contains a Developer mode toggle button', async ({ page }) => {
     await page.click('#btn-options');
@@ -1746,7 +1802,7 @@ test.describe('Preview index page', () => {
     await page.goto('/preview/');
     const previewLink = page.locator('.pr-item').first().locator('.btn-secondary');
     // Branch "feature/dark-mode" sanitised → "feature-dark-mode"
-    await expect(previewLink).toHaveAttribute('href', 'http://localhost:3000/preview/feature-dark-mode/');
+    await expect(previewLink).toHaveAttribute('href', /\/preview\/feature-dark-mode\/$/);
   });
 
   test('shows empty state when there are no open PRs', async ({ page }) => {

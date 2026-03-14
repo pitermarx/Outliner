@@ -168,12 +168,13 @@ After adding `environment: supabase-production` to the workflow, configure the g
 - **Compression**: data is gzip-compressed with the native `CompressionStream` browser API before storing in Supabase to minimise storage and bandwidth.
 - **Poll interval**: every 15 seconds (and immediately when the browser tab regains focus).
 - **Version numbers**: each push increments `doc.version`, allowing the client to detect whether the server has newer data.
-- **Sync indicator**: a small status label appears between the toolbar spacer and the Options button:
-  - *Pending* — unsaved local changes waiting to be pushed.
-  - *Syncing…* — network request in progress.
-  - *Synced* — last sync completed successfully (fades after 3 s).
-  - *Sync error* — network or server failure.
-  - *Conflict – click to resolve* — clicking opens the conflict modal.
+- **Sync indicator**: a small icon appears between the storage indicator and the Options button:
+  - *cloud with checkmark* (`online`) — online sync is active, all data is current.
+  - *cloud with up-arrow* (`pending`) — unsaved local changes waiting to be pushed.
+  - *spinning ring* (`syncing`) — network request in progress.
+  - *cloud with checkmark in green* (`synced`) — last sync completed (transitions to `online` after 3 s).
+  - *warning triangle* (`error`) — network or server failure.
+  - *lightning bolt* (`conflict`) — click to open the conflict modal.
 - **Sync algorithm** (runs every 15 s):
   1. If a server pull is pending user resolution, skip the tick entirely.
   2. Fetch the server version number (lightweight, no data download).
@@ -186,6 +187,7 @@ After adding `environment: supabase-production` to the workflow, configure the g
   - **Apply Resolved** — edit the pre-populated "Resolved version" textarea and apply it (unpauses sync).
 - **Theme sync**: the active theme (light/dark) is included in the sync payload so it stays consistent across devices.
 - **First sync**: on the first sync after signing in, if the server has no data and the client has local content it is uploaded automatically.
+- **Storage indicator**: a mini pie-chart (`#storage-indicator`) in the toolbar always shows how much of the non-enforced 20 KB limit is used. The fill colour is green (< 60 %), orange (60–85 %), or red (> 85 %). A tooltip shows the exact size in KB. The indicator updates whenever the document is saved.
 
 ---
 
@@ -266,9 +268,10 @@ Use `history.pushState` for zoom changes so back/forward work naturally. Use `hi
 
 <div id="toolbar">             <!-- fixed bottom -->
   <button id="btn-markdown">Markdown</button>    <!-- opens unified edit-as-markdown modal -->
-  <span id="sync-indicator">                     <!-- sync status label (hidden when sync is off or not signed in) -->
+  <span id="storage-indicator">                  <!-- mini pie-chart showing data size vs 20 KB limit; always visible -->
+  <span id="sync-indicator">                     <!-- icon-only sync status (hidden when not signed in) -->
   <button id="btn-options">Options</button>       <!-- opens options modal (theme, sign in, GitHub link) -->
-  <span class="toolbar-hint">? for shortcuts</span>   <!-- click opens shortcuts modal -->
+  <button id="btn-shortcuts">?</button>           <!-- click opens shortcuts modal -->
 </div>
 
 <div id="dev-panel">           <!-- fixed right sidebar, hidden unless dev mode is on -->
@@ -323,7 +326,7 @@ Dark mode is applied by setting `data-theme="dark"` on `<html>`. The `html[data-
 
 The splash screen (`#splash`) uses `var(--bg)` and `var(--accent)` so it automatically renders in the active theme. Since `applyTheme()` is called at the very start of `init()`, the theme is set before the splash becomes visible.
 
-The sync indicator (`#sync-indicator`) uses modifier classes on the element itself: `syncing`, `synced`, `pending`, `error`, `conflict`. When none of these classes are present (or the `visible` class is absent) it is hidden. The `.sync-spinner` element uses a `@keyframes sync-spin` CSS animation for the rotating ring.
+The sync indicator (`#sync-indicator`) uses modifier classes on the element itself: `syncing`, `synced`, `pending`, `error`, `conflict`, `online`. When none of these classes are present (or the `visible` class is absent) it is hidden. The indicator is **icon-only** (no text) with a tooltip for each state. The `.sync-spinner` element uses a `@keyframes sync-spin` CSS animation for the rotating ring. After `synced` completes (3 s timeout), the status transitions to `online` (subtle cloud icon) rather than hidden, so the user can always see that online sync is active.
 
 The dev panel (`#dev-panel`) is `position:fixed; right:0; top:0; bottom:0; width:320px` and is hidden (`.hidden` class) unless developer mode is active. `.btn-danger` follows the same structure as `.btn-primary` but uses `var(--danger)` as its background/border colour.
 
