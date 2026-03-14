@@ -85,6 +85,9 @@ export function getZoomRoot() {
 let _onSyncStatusUpdate = null;
 export function setSyncStatusCallback(fn) { _onSyncStatusUpdate = fn; }
 
+let _onDocSaved = null;
+export function setDocSavedCallback(fn) { _onDocSaved = fn; }
+
 // ── Persistence ───────────────────────────────────────────────────────────────
 // localStorage always stores plain JSON — encryption is only used for server
 // sync payloads.
@@ -105,6 +108,7 @@ export function saveDocLocal() {
 function _persistDoc() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(doc));
+        _onDocSaved?.();
     } catch (e) { }
 }
 

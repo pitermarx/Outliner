@@ -9,7 +9,7 @@ import {
     render, setSyncStatus, applyDevMode,
     applyTheme, openModal, closeModal, openSearch,
     setLoginMode, loginMode, setZoomToCallback, showDescEditor, autoResize,
-    renderBreadcrumb
+    renderBreadcrumb, updateStorageIndicator
 } from './view.js';
 import {
     focusNode, focusNodeAtStart, clearSelection, applySelectionHighlights,
@@ -26,6 +26,7 @@ import {
 
 setZoomToCallback(zoomTo);
 State.setSyncStatusCallback(setSyncStatus);
+State.setDocSavedCallback(updateStorageIndicator);
 
 // ── Bullet container delegation ───────────────────────────────────────────────
 
@@ -458,7 +459,7 @@ document.getElementById('search-close').addEventListener('click', endSearch);
 
 // ── Toolbar hint ──────────────────────────────────────────────────────────────
 
-document.querySelector('.toolbar-hint').addEventListener('click', () => openModal('modal-shortcuts'));
+document.getElementById('btn-shortcuts').addEventListener('click', () => openModal('modal-shortcuts'));
 
 // ── Login modal ───────────────────────────────────────────────────────────────
 
@@ -494,6 +495,7 @@ async function init() {
     }
     State.loadFromHash();
     render();
+    updateStorageIndicator();
     initAuth();
     applyDevMode();
 
