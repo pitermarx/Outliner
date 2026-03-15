@@ -293,9 +293,9 @@ export function renderBreadcrumb() {
     el.classList.add('visible');
     el.replaceChildren();
 
-    const addCrumb = (text, cls, targetStack) => {
-        const crumb = cloneTemplate('template-crumb') || h('span', cls);
-        crumb.className = cls;
+    const addCrumb = (text, className, targetStack) => {
+        const crumb = cloneTemplate('template-crumb') || h('span', className);
+        crumb.className = className;
         crumb.textContent = text;
         if (targetStack !== null) crumb.dataset.zoomStack = JSON.stringify(targetStack);
         el.appendChild(crumb);

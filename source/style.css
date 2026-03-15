@@ -482,13 +482,11 @@ body {
 }
 
 /* Show a subtle placeholder for bullets with no description when the row is focused or hovered */
-.bullet-row:not(:has(.bullet-desc.editing)).focused .bullet-desc-view:not(.visible):empty,
-.bullet-row:not(:has(.bullet-desc.editing)):hover .bullet-desc-view:not(.visible):empty {
+.bullet-row:not(:has(.bullet-desc.editing)):is(.focused, :hover) .bullet-desc-view:not(.visible):empty {
     display: block;
 }
 
-.bullet-row:not(:has(.bullet-desc.editing)).focused .bullet-desc-view:not(.visible):empty::before,
-.bullet-row:not(:has(.bullet-desc.editing)):hover .bullet-desc-view:not(.visible):empty::before {
+.bullet-row:not(:has(.bullet-desc.editing)):is(.focused, :hover) .bullet-desc-view:not(.visible):empty::before {
     content: 'Add description…';
     color: var(--text-faint);
     font-style: italic;

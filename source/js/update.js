@@ -561,12 +561,9 @@ export function update(msg) {
         case 'SYNC_REQUEST': {
             if (State.syncPaused || !State.encryptionKey) return { effects: [] };
             State.syncStatus = 'syncing';
-            const syncEffects = [];
-            if (State.focusedId && findNode(State.focusedId, State.doc.root)) {
-                syncEffects.push({ type: 'focus-bullet', id: State.focusedId });
-            }
-            syncEffects.push({ type: 'sync-now' });
-            return { effects: syncEffects };
+            const validFocusId = State.focusedId && findNode(State.focusedId, State.doc.root)
+                ? State.focusedId : null;
+            return { effects: [...focusEffect(validFocusId), { type: 'sync-now' }] };
         }
 
         case 'SYNC_RESULT': {
