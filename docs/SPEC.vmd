@@ -1,0 +1,205 @@
+- Virgulas Reference Document
+  This document is the source of truth for "Virgulas", a local-first browser outliner.
+
+    + It is an infinite list of editable "Nodes".
+        - Each "Node" has a **single line** of text
+        - Can have an optional text called "Description".
+          Only the first 2 lines of the "Description" are visible when not editing, showing "..." otherwise
+        - Can have "Children", which in turn are other "Nodes"
+        - Each "Node" text and its "Description" can have rendered markdown when not editing.
+          Markdown elements are limited to
+          **Bold**, __Italic__, [links](http://example.com), ![](https://images.png), `monospace code`
+
+    + Behaviors of a "Node"
+      All behaviors are "undo-able", on the current session, up to a stack of 100 actions. Press `Ctrl+Z` to undo, `Ctrl+Y` to redo
+        + FOCUS
+            - When focusing a "Node" or "Description", the text becomes editable, and the raw markdown is visible
+            - (MOBILE ONLY) When focusing a "Node", its "Description" field becomes visible, even when empty
+            - (DESKTOP ONLY) To toggle between "Node" and "Description" we can use `Shift+Enter`. Empty "Descriptions" are invisible
+            - (DESKTOP ONLY) When nothing is focused, `↑` focuses the last node and `↓` focuses the first node.
+            - (DESKTOP ONLY) `Enter` creates a new node below the focused node.
+              If it already has children, the new node becomes the first child.
+              If it does not have children, it creates a node at the same level.
+
+        + (DESKTOP ONLY) MULTI-SELECT
+            - When a "Node" is focused, a multi-bullet selection can be expanded with the shortcuts `Shift+↑/↓`
+                - Arrow up expands the selection to the previous "Node" of the same indentation level
+                - Arrow down expands the selection to the next "Node" of the same indentation level
+            - Multi-select is only possible on a single indentation level
+                - Selecting a "Node" implicitly selects all its children
+
+        + (DESKTOP ONLY) MOVE
+            - "Nodes" can be moved with the shortcuts `Alt+↑/↓`
+            - If multi-selection is active, Move also works as expected
+
+        + COLLAPSE
+          "Nodes" can hide and show their children by collapsing and expanding
+            - When collapsed, the "Node" has a visual indicator on the bullet point that it contains children, but they are not visible
+            - (MOBILE ONLY) To toggle expand and collapse there will be a visible ▶ or ▼ button
+            - (DESKTOP ONLY) To toggle expand and collapse we can use `Ctrl+Enter`
+            - (DESKTOP ONLY, MULTI-SELECT) When multi-selected, and we use the `Ctrl+Enter` shortcut
+                - If all "Nodes" are collapsed, then they all expand
+                - Otherwise they all collapse
+
+        + ZOOM
+          When zoomed in, a "Node" and all its parents are clearly seen in the "Breadcrumb"
+            - Each segment of the "Breadcrumb" is clickable and will zoom into that "Node"
+            - When zoomed, the text of the "Node" is not editable
+            - The description is also visible and editable
+            - The "Children" of the zoomed "Node" will behave the exact same way as if they were root "Nodes"
+            - Clicking the bullet point of a node zooms into it
+            - (DESKTOP ONLY) `Alt+→` zooms into a node, `Alt+←` zooms back out
+                - Most browsers use `Alt+←` to go back in history, so zooms are kept as browser navigation history entries
+                - The URL carries the ID of the zoomed "Node" as a query parameter so it can be directly referenced
+                - If the URL contains a node ID on load, the app zooms into that node automatically after unlock
+                - If the node no longer exists, the parameter is ignored and the root is shown
+            - (DESKTOP ONLY) On zoom, the first child is automatically focused
+
+        + INDENT
+            - Each "Node" can be indented and unindented individually
+              `Tab` and `Shift+Tab` are the shortcuts for changing indentation level
+            - On mobile, a swipe right/left gesture is used for indentation
+            - Order will be kept when indenting and unindenting. Take this sequence as an example:
+              `     | INDENT B | INDENT C | UNINDENT B | INDENT B
+              - A  | - A      | - A      | - A        | - A
+              - B  |  - B     |  - B     | - B        |  - B
+              - C  | - C      |  - C     |  - C       |   - C `
+            - If multi-selection is active, indentation also works as expected
+
+        + DELETE
+            - "Nodes" can be deleted without confirmation when they don't have "Children"
+            - A confirmation is necessary when "Children" exist. Deleting a "Node" also deletes all its "Children"
+            - If multi-selection is active, delete also works as expected
+            - The node is deleted if Backspace is pressed on a node that has no text
+              If there is text, the backspace functions as if `↑` was pressed
+            - (DESKTOP ONLY) The shortcut `Ctrl+Backspace` is used for delete
+
+    + RAW MODE
+        - Direct manipulation of the text is possible in a special "RAW" mode
+        - This document is an example of a raw Virgulas document; by convention it has the extension .vmd
+        - The `+` char means a collapsed node and the `-` char means an expanded node
+        - To actually have the + or - char at the beginning of a line, use the escape char \
+          \\ shows the \ character, \+ and \- show the + and - characters. Escaping is only needed at the beginning of lines
+        - Hierarchy is determined by relative indentation, not absolute column numbers
+          A child node must have more leading whitespace than its parent; the exact amount is not significant
+          Sibling nodes share the same indentation level relative to their parent
+        - All lines that do not begin with + or - (after stripping leading whitespace) are descriptions of the previous node
+          Indentation is not relevant on description lines; empty lines are ignored
+        - When in RAW mode, the app is a plain text editor with a "SAVE" and a "CANCEL" button
+
+    + SEARCH
+        - Search can be done with simple substring matches
+        - Search is activated with `Ctrl+F` on desktop and with a scroll up on mobile
+          The search controls are hidden by default
+        - Search can be dismissed with `Esc` on desktop or with an `X` clear button
+        - When searching, the document becomes read-only
+        - When searching, there is a live highlight of all matched words
+        - When searching, all nodes that match are expanded and visible; non-matching nodes are hidden
+        - (DESKTOP ONLY) Search results are cycled with `Tab` and `Shift+Tab`
+        - When focusing a result by pressing `Enter` or clicking it, the app auto-zooms into the closest
+          collapsed ancestor of the matched node
+        - Search is "smart case": lowercase-only input is case-insensitive; any uppercase letter makes it case-sensitive
+        - A result counter showing current index and total is visible while searching
+
+    + ENCRYPTION
+      All document data is always encrypted, both in localStorage and in the cloud.
+      The passphrase is the single secret the user must know. It is never stored or transmitted.
+
+        - On first use, the user sets a passphrase
+        - A random PBKDF2 salt is generated once and stored in localStorage under `vmd_salt`
+          This is the only value in localStorage stored in plaintext, as it is required to derive the key
+        - The encryption key is derived from the passphrase and the salt via PBKDF2 (310,000 iterations, SHA-256, 256-bit output)
+          The derived key is never stored — it is re-derived on each unlock
+        - All document data is encrypted with the derived key using AES-GCM with a unique IV per write operation
+          The IV is prepended to the ciphertext and stored together, base64-encoded
+        - The encrypted document is stored in localStorage under `vmd_data`
+        - All other localStorage values are also encrypted with the derived key
+          This prevents XSS attacks from reading any useful data from localStorage
+        - On every subsequent visit, the user enters their passphrase to derive the key and decrypt the document
+        - If the passphrase is forgotten, the data is unrecoverable. There is no reset path.
+
+        + QUICK UNLOCK (PASSKEY / PRF)
+          Quick unlock is optional. The user may choose to type their passphrase on every visit instead.
+            - After unlocking with a passphrase, the user is offered the option to register a passkey for that device
+              The offer is a non-blocking banner. "Not now" dismisses it for the session; it reappears on the next unlock
+              If the browser does not support WebAuthn PRF, the offer is silently suppressed
+            - The passkey uses the WebAuthn PRF extension to derive a device-local secret from the authenticator
+              That secret wraps the passphrase and the wrapped value is stored in localStorage under `vmd_prf_wrapped`
+              The credential ID is stored under `vmd_prf_id`
+              The PRF eval input is a fixed, versioned constant — it must never change after deployment
+            - On subsequent visits the user authenticates with their device (fingerprint, Face ID, PIN)
+              The PRF output unwraps the passphrase, the key is re-derived, and the document is decrypted
+            - The passphrase remains the fallback if the passkey is unavailable or the device is new
+
+    + ACCOUNTS AND SYNC
+      Creating an account enables cloud sync via Supabase. The encryption model is unchanged.
+      The server stores only ciphertext and cannot decrypt user data.
+
+        - The account password is only used for Supabase Auth — it is unrelated to the encryption passphrase
+          The passphrase is set independently and never sent to any server
+        - To create an account the user provides an email and password for Supabase Auth
+          The PBKDF2 salt already in localStorage is uploaded to the `outlines` table
+          From this point, any device that knows the passphrase can re-derive the same key
+        - Signing in on a new device fetches the salt from the `outlines` table
+          The user enters their passphrase, the key is re-derived, and the document is decrypted
+          The user may then optionally register a passkey for quick unlock on that device
+        - The Supabase session token is encrypted and stored in localStorage under `vmd_session` when quick unlock is active
+          On passphrase-only visits the session token is kept in memory only
+        - The derived key lives only in memory for the duration of the session
+          On page close or sign-out, the key is gone and must be re-derived on the next visit
+
+        + SYNC BEHAVIOUR
+            - After every local write, the app attempts a background upload to the server
+            - If the upload fails it is retried a few times with increasing delays, then abandoned until the next write
+            - On sign-in or page load (when a session exists), the server and local copies are compared by timestamp
+                - If only one side has data, that side wins
+                - If local is newer, it is uploaded silently
+                - If the server is newer, the user is prompted to choose which version to keep
+                  There is no automatic merge — one version wins entirely
+            - The status toolbar shows a sync indicator when the user is signed in
+              Possible states: synced, syncing, error, offline
+
+        + DATABASE SCHEMA
+            - `outlines` table
+                - `user_id` uuid primary key — references auth.users
+                - `salt` text — PBKDF2 salt, base64-encoded, generated on first use and never changed
+                - `data` text — AES-GCM encrypted document, base64-encoded
+                  The first 12 bytes of the decoded value are the IV, the remainder is the ciphertext
+                - `updated_at` timestamptz
+            - Row Level Security enabled
+              All policies restrict read and write to `auth.uid() = user_id`
+
+    + Design considerations
+        - A splash screen is seen on load, and it is removed after the app is completely ready
+        - The text of root nodes has a font-size of 1rem, the second level 0.9rem, and remaining nodes 0.85rem
+          The description has a more faded colour and is 85% of the size of the node text
+        - There is a "Status" toolbar at the bottom of the screen with
+            - "RAW" mode button
+            - "?" button to show all keyboard shortcuts
+            - "Options" button to see all configuration options
+                - Theme toggle
+                - A link to the source repository
+                - A button to purge all local data and start fresh
+            - A sync status indicator, visible only when the user is signed in
+
+        - Google font Inter is the base typography. 1rem = 14px
+          Base: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          Mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    + Technical considerations
+        - The app is a static website. No server is necessary to use it
+        - The document is stored in localStorage as a single JSON object, always encrypted
+        - Preact and Preact Signals are the UI frameworks, loaded via CDN import map
+        - The Supabase JS client is loaded via CDN
+        - All crypto operations use the native Web Crypto API
+        - Playwright E2E tests cover all the app's features and edge cases
+        - (DESKTOP ONLY) If a querystring parameter ?debug=true exists, debug mode is activated
+            - A panel with internal state information is shown
+            - Console debug messages are printed
+        + CI/CD
+            - The app is hosted on GitHub Pages
+            - On each commit, all E2E tests are run and a preview site is generated
+            - On /preview, a page listing all open PRs is shown with a button to use that preview version
+              E.g. `virgulas.com/preview/my-feature` will serve the code from the `my-feature` branch
+            - On the main branch, the pipeline purges the Cloudflare cache after a successful deploy
+            - Daily, a secondary workflow runs all tests against the production version at `virgulas.com`
