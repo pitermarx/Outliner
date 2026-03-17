@@ -207,3 +207,17 @@
               E.g. `virgulas.com/preview/my-feature` will serve the code from the `my-feature` branch
             - On the main branch, the pipeline purges the Cloudflare cache after a successful deploy
             - Daily, a secondary workflow runs all tests against the production version at `virgulas.com`
+- Virgulas TODO
+  - move ? to right, hide on mobile
+  - shortcut to toggle theme
+  - wide mode
+  - bugs
+    - from nothing focused, up should focus last, down should focus first
+    - Enter should create a new node at the end
+      Always show a button at the end of the list "Create a new node"
+    - escape when search is focused, closes the search bar
+  - search is always global. full document
+  - Enter when the next node is empty focuses it
+  - When cursor is at the begining of a non-empty line, enter creates an item before it
+  - escape should unfocus, and remove highlight
+  - npm test is not stopping the server after

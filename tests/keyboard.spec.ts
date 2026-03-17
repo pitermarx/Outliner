@@ -2,7 +2,6 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Keyboard', () => {
   test.beforeEach(async ({ page }) => {
-    page.on('console', msg => console.log(`[Browser] ${msg.text()}`));
 
     // Setup fresh state
     await page.goto('/');
