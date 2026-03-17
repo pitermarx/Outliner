@@ -35,11 +35,11 @@ Set both to empty strings to run without Supabase — sync and auth features wil
 
 ### Running locally
 
-`index.html` uses ES module imports and cannot be opened directly from the filesystem.
-Use any static file server:
+The app uses ES module imports and cannot be opened directly from the filesystem.
+Serve the `source/` folder with any static file server:
 
 ```bash
-npx serve .
+npm run serve
 ```
 
 ### Import map
@@ -101,7 +101,7 @@ Playwright starts a local static server automatically — no separate `npx serve
 
 - Tests covering **Supabase auth and sync** require valid values in `.env`; they are skipped with a warning if absent
 - Tests covering **WebAuthn PRF** use Playwright's virtual authenticator API — no hardware required; Chromium only
-- All other tests run in Chromium, Firefox, and WebKit
+- All other tests run in Chromium and Firefox.
 
 ### CI/CD
 
@@ -155,7 +155,11 @@ Do not create files outside these locations without explicit instruction:
 
 ```
 /
-├── index.html              — single-file app; all HTML, CSS, and JS
+├── source/
+│   ├── index.html          — single-file entry point; HTML, CSS references, and JS entrypoint
+│   ├── css/                — stylesheets
+│   ├── js/                 — application modules
+│   └── media/              — icons and static assets
 ├── tests/
 │   └── *.spec.ts           — Playwright tests
 ├── supabase/
@@ -171,7 +175,7 @@ Do not create files outside these locations without explicit instruction:
 
 Do not introduce dependencies or frameworks beyond what is listed here.
 
-- Single self-contained `index.html` — no build step, no bundler
+- Single self-contained `source/` folder — no build step, no bundler; entry point is `source/index.html`
 - **Preact** and **Preact Signals** via CDN import map (see import map above)
 - **Supabase JS client** via CDN
 - All crypto via the native **Web Crypto API** — no third-party crypto libraries

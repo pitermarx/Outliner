@@ -35,9 +35,12 @@
         + COLLAPSE
           "Nodes" can hide and show their children by collapsing and expanding
             - When collapsed, the "Node" has a visual indicator on the bullet point that it contains children, but they are not visible
-            - (MOBILE ONLY) To toggle expand and collapse there will be a visible ▶ or ▼ button
-            - (DESKTOP ONLY) To toggle expand and collapse we can use `Ctrl+Enter`
-            - (DESKTOP ONLY, MULTI-SELECT) When multi-selected, and we use the `Ctrl+Enter` shortcut
+              Collapsed and has children: ○
+              Otherwise: ●
+            - To toggle expand and collapse there will be a visible ▶ or ▼ button at the end of each line
+              Always visible on mobile, visible on hover for desktop
+            - (DESKTOP ONLY) To toggle expand and collapse we can use `Ctrl+Space`
+            - (DESKTOP ONLY, MULTI-SELECT) When multi-selected, and we use the `Ctrl+Space` shortcut
                 - If all "Nodes" are collapsed, then they all expand
                 - Otherwise they all collapse
 
@@ -60,10 +63,10 @@
               `Tab` and `Shift+Tab` are the shortcuts for changing indentation level
             - On mobile, a swipe right/left gesture is used for indentation
             - Order will be kept when indenting and unindenting. Take this sequence as an example:
-              `     | INDENT B | INDENT C | UNINDENT B | INDENT B
-              - A  | - A      | - A      | - A        | - A
-              - B  |  - B     |  - B     | - B        |  - B
-              - C  | - C      |  - C     |  - C       |   - C `
+              `     | INDENT B | INDENT C | UNINDENT B | INDENT B`
+              ``- A  | - A      | - A      | - A        | - A``
+              ``- B  |  - B     |  - B     | - B        |  - B``
+              ``- C  | - C      |  - C     |  - C       |   - C ``
             - If multi-selection is active, indentation also works as expected
 
         + DELETE
@@ -114,8 +117,9 @@
           The IV is prepended to the ciphertext and stored together, base64-encoded
         - The encrypted document is stored in localStorage under `vmd_data`
         - All other localStorage values are also encrypted with the derived key
-          This prevents XSS attacks from reading any useful data from localStorage
+          This prevents XSS attacks from reading any useful data from localStorage. Theme can be the exception
         - On every subsequent visit, the user enters their passphrase to derive the key and decrypt the document
+          He can optionally start a fresh document. This warns the user that the data stored on device will be lost
         - If the passphrase is forgotten, the data is unrecoverable. There is no reset path.
 
         + QUICK UNLOCK (PASSKEY / PRF)
