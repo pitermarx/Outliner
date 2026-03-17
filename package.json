@@ -1,0 +1,14 @@
+{
+    "name": "virgulas",
+    "version": "1.0.0",
+    "description": "Local-first browser outliner",
+    "scripts": {
+        "test": "playwright test",
+        "serve": "serve -p 3000 source"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.58.2",
+        "serve": "^14.2.6",
+        "supabase": "^2.80.0"
+    }
+}

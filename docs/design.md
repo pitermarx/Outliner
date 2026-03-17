@@ -124,6 +124,9 @@ Usage guidance:
 
 - Row contains a small leading marker + content area.
 - Row states: default, hover, focused, selected, search-match, search-current.
+  - Hover: subtle warm surface tint (`--color-hover-surface`).
+  - Focused (keyboard focus / editing): accent-soft background (`--color-accent-soft`) + a 3px left-side solid border in `--color-accent-primary`. Visually distinct from hover so the user always knows which node is active.
+  - Selected (multi-select): selected-surface background (`--color-selected-surface`).
 - Nested hierarchy uses visual indentation and a subtle guide line.
 - Collapsed parent state uses a stronger marker treatment.
 
@@ -137,8 +140,9 @@ Usage guidance:
 ### Secondary Description Content
 
 - Description is visually subordinate to main text.
-- In read mode, preview truncates to two lines.
+- In read mode, preview truncates to two lines; "…" appended when more exist.
 - Placeholder hint appears when empty in interactive states.
+- In edit mode, the textarea auto-grows to reveal all content (no fixed height, no scroll).
 
 ### Search UI
 
