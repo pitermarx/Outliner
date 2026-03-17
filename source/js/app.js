@@ -27,7 +27,7 @@ const initApp = async () => {
     console.warn('Quick unlock support detection failed', err);
     state.quickUnlockSupported.value = false;
   }
-  
+
   if (storage.hasRaw('vmd_data')) {
     const hasQuickUnlockData = storage.hasRaw('vmd_prf_wrapped') && storage.hasRaw('vmd_prf_id');
     if (state.quickUnlockSupported.value && hasQuickUnlockData) {
@@ -60,30 +60,30 @@ const initApp = async () => {
     console.log('Setting status to setup');
     state.status.value = 'setup';
   }
-  
+
   // Init theme
   const storedTheme = localStorage.getItem('vmd_theme');
   if (storedTheme) {
-     state.theme.value = storedTheme;
-     document.documentElement.setAttribute('data-theme', storedTheme);
+    state.theme.value = storedTheme;
+    document.documentElement.setAttribute('data-theme', storedTheme);
   } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-     state.theme.value = 'dark';
+    state.theme.value = 'dark';
   }
 
   // Init sync
   if (window.supabase) {
-      AppSync.init();
+    AppSync.init();
   } else {
-      window.addEventListener('load', () => {
-          if (window.supabase) AppSync.init();
-      });
+    window.addEventListener('load', () => {
+      if (window.supabase) AppSync.init();
+    });
   }
 };
 
 const App = () => {
   console.log('App rendering, status:', state.status.value);
   const viewMode = state.viewMode.value;
-  
+
   useEffect(() => {
     // Hide splash screen after initialization
     const run = async () => {
@@ -106,7 +106,7 @@ const App = () => {
   if (status === 'setup') return h(SetupView);
   if (status === 'unlock') return h(UnlockView);
   if (status === 'ready') {
-     return viewMode === 'raw' ? h(RawView) : h(MainView);
+    return viewMode === 'raw' ? h(RawView) : h(MainView);
   }
 
   return h('div', null, 'Unknown state');

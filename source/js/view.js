@@ -1096,26 +1096,26 @@ export const MainView = () => {
       h('div', { className: 'outliner' },
         displayDoc.children && displayDoc.children.length > 0
           ? displayDoc.children.map((child, index) =>
-              h(Node, {
-                key: child.id,
-                node: child,
-                path: [...zoomPath, index],
-                onUpdate: onUpdate,
-                onAction: onAction,
-                readOnly: !!query
-              })
-            )
+            h(Node, {
+              key: child.id,
+              node: child,
+              path: [...zoomPath, index],
+              onUpdate: onUpdate,
+              onAction: onAction,
+              readOnly: !!query
+            })
+          )
           : !query && h('div', {
-              className: 'empty-state',
-              tabIndex: 0,
-              onClick: () => onAction('addChild', zoomPath),
-              onKeyDown: (e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  onAction('addChild', zoomPath);
-                }
+            className: 'empty-state',
+            tabIndex: 0,
+            onClick: () => onAction('addChild', zoomPath),
+            onKeyDown: (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                onAction('addChild', zoomPath);
               }
-            }, 'Press Enter to add a node...')
+            }
+          }, 'Press Enter to add a node...')
       ),
       new URLSearchParams(window.location.search).get('debug') === 'true' && h('div', {
         className: 'debug-panel'
