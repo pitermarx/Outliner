@@ -114,11 +114,6 @@ const installMockSupabase = async (page: Page, options?: { userEmail?: string; a
 };
 
 test.describe('Authentication', () => {
-  test.beforeEach(async ({ page }) => {
-    page.on('console', msg => console.log(`[Browser Console] ${msg.text()}`));
-    page.on('pageerror', err => console.log(`[Browser Error] ${err.toString()}`));
-  });
-
   test('first run flow: set passphrase', async ({ page }) => {
     // Clear localStorage to simulate first run
     await page.addInitScript(() => localStorage.clear());
