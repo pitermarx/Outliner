@@ -11,6 +11,7 @@ export const storage = {
 
   // Get the persistent salt
   getSalt: () => localStorage.getItem('vmd_salt'),
+  setSalt: (salt) => localStorage.setItem('vmd_salt', salt),
 
   // Plain read/write helpers for non-document values.
   getRaw: (key) => localStorage.getItem(key),

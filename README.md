@@ -22,11 +22,19 @@ Virgulas is a local-first browser outliner.
 - Distinct focus style (accent background + left border) separate from hover style
 - Theme toggle (light/dark) persisted in localStorage
 - Client-side AES-GCM encryption (passphrase never stored or transmitted)
+- Unified lock screen with Local/Remote mode switch
+  - Local mode: passphrase-only create/unlock flow
+  - Remote mode: account credentials + passphrase when session is stale; passphrase-only when session is valid
+  - Destructive mode switches require confirmation (local data loss or sign-out)
 - Optional quick unlock with device passkey (WebAuthn PRF) after passphrase unlock
+  - Quick unlock enables passphrase-less unlock on later visits by locally storing only a wrapped passphrase (`vmd_prf_wrapped` + `vmd_prf_id`)
   - Optimistic capability detection with automatic local disable after failed PRF registration/unlock
-  - Reset quick unlock keys from Unlock screen or Options -> Data
-- Account controls in Options modal (sign up, sign in, sign out)
+  - Quick unlock key reset lives on the lock screen
+- Lock-screen account controls (sign up, sign in, sign out)
+- Remote decrypt failure recovery on lock screen: reset remote encrypted data with a new passphrase (destructive)
 - Optional cloud sync via Supabase (end-to-end encrypted)
+  - Field-level auto-merge on conflicts (same-node different-field changes merge automatically)
+  - Node-level conflict resolution when the same field is edited differently
 - Keyboard shortcuts modal (`?` button)
 - Options panel (theme, source link, reset quick unlock keys, purge data)
 

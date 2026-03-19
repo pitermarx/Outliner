@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { storage } from './storage.js';
 import { AppCrypto } from './crypto.js';
+import { AppSync } from './sync.js';
 import { getNode, getParent } from './model.js';
 
 // Helper to traverse and update

@@ -108,7 +108,9 @@
       All document data is always encrypted, both in localStorage and in the cloud.
       The passphrase is the single secret the user must know. It is never stored or transmitted.
 
-        - On first use, the user sets a passphrase
+        - On first use, the app is locked and shows a storage mode switch: Local or Remote
+          In Local mode, the user creates a passphrase (single passphrase field)
+          In Remote mode, the user provides account email, account password, and passphrase
         - A random PBKDF2 salt is generated once and stored in localStorage under `vmd_salt`
           This is the only value in localStorage stored in plaintext, as it is required to derive the key
         - The encryption key is derived from the passphrase and the salt via PBKDF2 (310,000 iterations, SHA-256, 256-bit output)
@@ -118,9 +120,14 @@
         - The encrypted document is stored in localStorage under `vmd_data`
         - All other localStorage values are also encrypted with the derived key
           This prevents XSS attacks from reading any useful data from localStorage. Theme can be the exception
-        - On every subsequent visit, the user enters their passphrase to derive the key and decrypt the document
-          He can optionally start a fresh document. This warns the user that the data stored on device will be lost
-        - If the passphrase is forgotten, the data is unrecoverable. There is no reset path.
+        - On subsequent visits, the app stays locked and chooses a default mode based on available local data and session state
+            - local encrypted data + no valid session: Local preselected, passphrase unlock
+              Switching to Remote warns that local encrypted data will be lost
+            - expired session with known account: Remote preselected, username prefilled, password + passphrase required
+            - valid remote session with retrievable payload: Remote preselected, encrypted payload is fetched, passphrase required to decrypt
+              Switching to Local warns that this signs out and clears local session state
+        - If the passphrase is forgotten, encrypted data is unrecoverable. There is no cryptographic recovery path.
+          A destructive reset path may replace remote encrypted data with a new empty document and a new passphrase.
 
         + QUICK UNLOCK (PASSKEY / PRF)
           Quick unlock is optional. The user may choose to type their passphrase on every visit instead.
@@ -133,6 +140,7 @@
               The PRF eval input is a fixed, versioned constant — it must never change after deployment
             - On subsequent visits the user authenticates with their device (fingerprint, Face ID, PIN)
               The PRF output unwraps the passphrase, the key is re-derived, and the document is decrypted
+              This supports passphrase-less unlock on that device while keeping passphrase fallback
             - The passphrase remains the fallback if the passkey is unavailable or the device is new
 
     + ACCOUNTS AND SYNC
@@ -144,8 +152,9 @@
         - To create an account the user provides an email and password for Supabase Auth
           The PBKDF2 salt already in localStorage is uploaded to the `outlines` table
           From this point, any device that knows the passphrase can re-derive the same key
-        - Signing in on a new device fetches the salt from the `outlines` table
+        - Signing in on a new device fetches encrypted payload + salt from the `outlines` table
           The user enters their passphrase, the key is re-derived, and the document is decrypted
+          If account auth succeeds but decryption fails, the lock screen offers a destructive reset to replace remote encrypted data using a new passphrase
           The user may then optionally register a passkey for quick unlock on that device
         - The Supabase session token is encrypted and stored in localStorage under `vmd_session` when quick unlock is active
           On passphrase-only visits the session token is kept in memory only
