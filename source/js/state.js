@@ -3,6 +3,11 @@ import { signal } from '@preact/signals';
 // --- APP STATE ---
 export const state = {
   status: signal('loading'), // 'loading' | 'setup' | 'unlock' | 'ready'
+  authMode: signal('local'), // 'local' | 'remote'
+  authScenario: signal('empty-local'), // 'empty-local' | 'local-present-no-session' | 'remote-session-expired' | 'remote-session-valid'
+  authHasLocalData: signal(false),
+  authLastUsername: signal(''),
+  authRemotePayload: signal(null),
   viewMode: signal('outline'), // 'outline' | 'raw'
   theme: signal(localStorage.getItem('vmd_theme') || 'light'),
   key: signal(null),         // CryptoKey | null
@@ -20,6 +25,7 @@ export const state = {
 
   // Sync State
   user: signal(null),        // User | null
+  syncConfigured: signal(false),
   syncStatus: signal('offline'), // 'offline' | 'syncing' | 'synced' | 'error'
 
   // Selection

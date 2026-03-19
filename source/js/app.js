@@ -1,10 +1,11 @@
-import { h, render } from 'preact';
+import { render } from 'preact';
 import { useEffect } from 'preact/hooks';
+import { html } from 'htm/preact';
 import { state } from './state.js';
 import { storage } from './storage.js';
 import { AppSync } from './sync.js';
 import { AppCrypto } from './crypto.js';
-import { SetupView, UnlockView, RawView, MainView } from './view.js';
+import { UnifiedLockView, RawView, MainView } from './view.js';
 import { dispatch } from './update.js';
 
 // Expose for testing and global access
@@ -18,9 +19,11 @@ window.App.dispatch = dispatch; // Will be overwritten by View but good default
 // Check initial state
 const initApp = async () => {
   console.log('initApp called');
-  // storage.init() is already called in index.html or should be called here
   storage.init();
   state.quickUnlockFallbackVisible.value = false;
+  state.authRemotePayload.value = null;
+  state.authHasLocalData.value = storage.hasRaw('vmd_data');
+  state.authLastUsername.value = localStorage.getItem('vmd_last_username') || '';
 
   try {
     state.quickUnlockSupported.value = await AppCrypto.isQuickUnlockSupported();
@@ -29,49 +32,9 @@ const initApp = async () => {
     state.quickUnlockSupported.value = false;
   }
 
-  if (storage.hasRaw('vmd_data')) {
-    const hasQuickUnlockData = storage.hasRaw(AppCrypto.PRF_WRAPPED_KEY) && storage.hasRaw(AppCrypto.PRF_ID_KEY);
-    if (hasQuickUnlockData && AppCrypto.isQuickUnlockLocallyDisabled()) {
-      state.quickUnlockFallbackVisible.value = true;
-    }
-
-    if (state.quickUnlockSupported.value && hasQuickUnlockData) {
-      try {
-        const passphrase = await AppCrypto.quickUnlockPassphrase(
-          storage.getRaw(AppCrypto.PRF_WRAPPED_KEY),
-          storage.getRaw(AppCrypto.PRF_ID_KEY),
-          { timeoutMs: AppCrypto.QUICK_UNLOCK_AUTO_TIMEOUT_MS }
-        );
-        const key = await AppCrypto.deriveKey(passphrase, storage.getSalt());
-        const doc = await storage.get('vmd_data', key);
-
-        if (doc) {
-          state.key.value = key;
-          state.doc.value = doc;
-          state.quickUnlockOfferVisible.value = false;
-          state.quickUnlockPassphrase.value = null;
-          state.quickUnlockFallbackVisible.value = false;
-          state.status.value = 'ready';
-        } else {
-          AppCrypto.markQuickUnlockUnsupported('unlock_doc_unavailable');
-          state.quickUnlockSupported.value = false;
-          state.quickUnlockFallbackVisible.value = true;
-          state.status.value = 'unlock';
-        }
-      } catch (err) {
-        console.warn('Quick unlock failed, falling back to passphrase', err);
-        AppCrypto.markQuickUnlockUnsupported('unlock_failed');
-        state.quickUnlockSupported.value = false;
-        state.quickUnlockFallbackVisible.value = true;
-        state.status.value = 'unlock';
-      }
-    } else {
-      console.log('Setting status to unlock');
-      state.status.value = 'unlock';
-    }
-  } else {
-    console.log('Setting status to setup');
-    state.status.value = 'setup';
+  const hasQuickUnlockData = storage.hasRaw(AppCrypto.PRF_WRAPPED_KEY) && storage.hasRaw(AppCrypto.PRF_ID_KEY);
+  if (hasQuickUnlockData && AppCrypto.isQuickUnlockLocallyDisabled()) {
+    state.quickUnlockFallbackVisible.value = true;
   }
 
   // Init theme
@@ -83,57 +46,152 @@ const initApp = async () => {
     state.theme.value = 'dark';
   }
 
-  // Init sync and session state
-  const initSync = async () => {
-    AppSync.init();
+  const tryQuickUnlockWithLocalData = async () => {
+    if (!state.authHasLocalData.value || !hasQuickUnlockData || !state.quickUnlockSupported.value) {
+      return false;
+    }
+
     try {
-      await AppSync.refreshSession();
+      const passphrase = await AppCrypto.quickUnlockPassphrase(
+        storage.getRaw(AppCrypto.PRF_WRAPPED_KEY),
+        storage.getRaw(AppCrypto.PRF_ID_KEY),
+        { timeoutMs: AppCrypto.QUICK_UNLOCK_AUTO_TIMEOUT_MS }
+      );
+      const key = await AppCrypto.deriveKey(passphrase, storage.getSalt());
+      const doc = await storage.get('vmd_data', key);
+
+      if (!doc) {
+        AppCrypto.markQuickUnlockUnsupported('unlock_doc_unavailable');
+        state.quickUnlockSupported.value = false;
+        state.quickUnlockFallbackVisible.value = true;
+        return false;
+      }
+
+      state.key.value = key;
+      state.doc.value = doc;
+      state.quickUnlockOfferVisible.value = false;
+      state.quickUnlockPassphrase.value = null;
+      state.quickUnlockFallbackVisible.value = false;
+      state.status.value = 'ready';
+      return true;
     } catch (err) {
-      console.warn('Failed to refresh sync session', err);
+      console.warn('Quick unlock failed, falling back to passphrase', err);
+      AppCrypto.markQuickUnlockUnsupported('unlock_failed');
+      state.quickUnlockSupported.value = false;
+      state.quickUnlockFallbackVisible.value = true;
+      return false;
     }
   };
 
+  const classifyAndSetAuthState = async () => {
+    let user = null;
+    let remote = null;
+
+    AppSync.init();
+
+    try {
+      user = await AppSync.refreshSession();
+    } catch (err) {
+      console.warn('Failed to refresh sync session', err);
+    }
+
+    if (user?.email) {
+      state.authLastUsername.value = user.email;
+      localStorage.setItem('vmd_last_username', user.email);
+    }
+
+    if (user) {
+      try {
+        remote = await AppSync.download();
+      } catch (err) {
+        console.warn('Failed to fetch remote encrypted payload', err);
+      }
+    }
+
+    if (user && remote?.salt && remote?.data) {
+      storage.setSalt(remote.salt);
+      state.authMode.value = 'remote';
+      state.authScenario.value = 'remote-session-valid';
+      state.authRemotePayload.value = remote;
+      state.status.value = 'unlock';
+      return;
+    }
+
+    if (state.authHasLocalData.value) {
+      state.authMode.value = 'local';
+      state.authScenario.value = 'local-present-no-session';
+      state.status.value = 'unlock';
+      return;
+    }
+
+    if (!user && state.authLastUsername.value) {
+      state.authMode.value = 'remote';
+      state.authScenario.value = 'remote-session-expired';
+      state.status.value = 'unlock';
+      return;
+    }
+
+    state.authMode.value = 'local';
+    state.authScenario.value = 'empty-local';
+    state.status.value = 'setup';
+  };
+
   if (window.supabase) {
-    await initSync();
+    await classifyAndSetAuthState();
+    if (state.status.value !== 'ready' && state.authHasLocalData.value) {
+      await tryQuickUnlockWithLocalData();
+    }
   } else {
-    window.addEventListener('load', () => {
+    state.syncConfigured.value = false;
+
+    if (state.authHasLocalData.value) {
+      state.authMode.value = 'local';
+      state.authScenario.value = 'local-present-no-session';
+      state.status.value = 'unlock';
+      await tryQuickUnlockWithLocalData();
+    } else if (state.authLastUsername.value) {
+      state.authMode.value = 'remote';
+      state.authScenario.value = 'remote-session-expired';
+      state.status.value = 'unlock';
+    } else {
+      state.authMode.value = 'local';
+      state.authScenario.value = 'empty-local';
+      state.status.value = 'setup';
+    }
+
+    window.addEventListener('load', async () => {
       if (window.supabase) {
-        initSync();
+        await classifyAndSetAuthState();
+        if (state.status.value !== 'ready' && state.authHasLocalData.value) {
+          await tryQuickUnlockWithLocalData();
+        }
       }
     }, { once: true });
+  }
+
+  // Hide splash screen
+  const splash = document.getElementById('splash');
+  if (splash) {
+    splash.classList.add('hidden');
+    setTimeout(() => splash.remove(), 700);
   }
 };
 
 const App = () => {
-  console.log('App rendering, status:', state.status.value);
+  useEffect(() => initApp(), []);
   const viewMode = state.viewMode.value;
 
-  useEffect(() => {
-    // Hide splash screen after initialization
-    const run = async () => {
-      await initApp();
-      setTimeout(() => {
-        const splash = document.getElementById('splash');
-        if (splash) {
-          splash.classList.add('hidden');
-          setTimeout(() => splash.remove(), 700);
-        }
-      }, 500);
-    };
-
-    run();
-  }, []);
-
-  const status = state.status.value;
-
-  if (status === 'loading') return null;
-  if (status === 'setup') return h(SetupView);
-  if (status === 'unlock') return h(UnlockView);
-  if (status === 'ready') {
-    return viewMode === 'raw' ? h(RawView) : h(MainView);
+  switch (state.status.value) {
+    case 'loading':
+      return null;
+    case 'setup':
+    case 'unlock':
+      return html`<${UnifiedLockView} />`;
+    case 'ready':
+      return viewMode === 'raw' ? html`<${RawView} />` : html`<${MainView} />`;
+    default:
+      return html`<div>Unknown state</div>`;
   }
-
-  return h('div', null, 'Unknown state');
 };
 
-render(h(App), document.getElementById('app'));
+render(html`<${App} />`, document.getElementById('app'));

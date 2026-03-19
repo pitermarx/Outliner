@@ -9,8 +9,8 @@ test('app shell and splash screen', async ({ page }) => {
   await expect(splash).toHaveText(/Virgulas/);
 
   await expect(splash).toBeHidden({ timeout: 5000 });
-  
+
   const app = page.locator('#app');
   await expect(app).toBeVisible();
-  await expect(page.getByText('Welcome to Virgulas')).toBeVisible();
+  await expect(page.getByText('Unlock Virgulas')).toBeVisible();
 });

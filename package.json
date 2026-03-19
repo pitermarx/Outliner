@@ -5,8 +5,6 @@
     "scripts": {
         "test": "playwright test",
         "serve": "serve -p 3000 source",
-        "local": "node scripts/start-local.js",
-        "local:cleanup": "node scripts/stop-local.js",
         "db:start": "supabase start --ignore-health-check",
         "db:stop": "supabase stop --no-backup --yes"
     },

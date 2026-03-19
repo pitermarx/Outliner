@@ -18,6 +18,23 @@ export const AppCrypto = {
   toBase64: (bytes) => btoa(String.fromCharCode(...bytes)),
   fromBase64: (base64) => Uint8Array.from(atob(base64), c => c.charCodeAt(0)),
 
+  compress: (jsonString) => {
+    const compressionStream = new CompressionStream('gzip');
+    const writer = compressionStream.writable.getWriter();
+    writer.write(new TextEncoder().encode(jsonString));
+    writer.close();
+    return new Response(compressionStream.readable).arrayBuffer();
+  },
+
+  decompress: async (bytes) => {
+    const decompressionStream = new DecompressionStream('gzip');
+    const writer = decompressionStream.writable.getWriter();
+    writer.write(bytes);
+    writer.close();
+    const decompressed = await new Response(decompressionStream.readable).arrayBuffer();
+    return new TextDecoder().decode(decompressed);
+  },
+
   toBase64Url: (bytes) => AppCrypto.toBase64(bytes)
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
@@ -217,10 +234,9 @@ export const AppCrypto = {
   // Encrypts text with AES-GCM-256
   // Returns base64 encoded string: IV (12 bytes) + Ciphertext
   encrypt: async (text, key) => {
-    const enc = new TextEncoder();
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    const encodedText = enc.encode(text);
+    const encodedText = await AppCrypto.compress(text);
 
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const ciphertext = await window.crypto.subtle.encrypt(
       { name: "AES-GCM", iv: iv },
       key,
@@ -252,8 +268,8 @@ export const AppCrypto = {
         key,
         ciphertext
       );
-      const dec = new TextDecoder();
-      return dec.decode(decrypted);
+
+      return await AppCrypto.decompress(decrypted);
     } catch (e) {
       console.error("Decryption failed:", e);
       throw new Error("Invalid password or corrupted data");
