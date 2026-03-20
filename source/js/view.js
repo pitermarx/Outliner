@@ -659,8 +659,8 @@ export const Node = ({ node, path, onUpdate, onAction, readOnly }) => {
   };
 
   const getFontSize = (depth) => {
-    if (depth === 0) return 'var(--text-size-root)';
-    if (depth === 1) return 'var(--text-size-level-2)';
+    if (depth <= 2) return 'var(--text-size-root)';
+    if (depth <= 3) return 'var(--text-size-level-2)';
     return 'var(--text-size-level-3)';
   };
 
